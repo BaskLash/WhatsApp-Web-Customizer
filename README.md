@@ -26,7 +26,7 @@ Lightweight • Open Source • Privacy-First • No Tracking • Real-time Prev
 
 ## Installation
 
-1. Install from [Chrome Web Store](https://chromewebstore.google.com/detail/... )
+1. Install from [Chrome Web Store](https://chromewebstore.google.com/detail/whatsapp-web-customizer-%E2%80%93/pnelkhckhbbgaeilofckgeajggipnmkf)
 2. Open https://web.whatsapp.com
 3. Click the extension icon → Customize!
 
