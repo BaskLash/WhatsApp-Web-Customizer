@@ -5,7 +5,7 @@ Lightweight • Open Source • Privacy-First • No Tracking • Real-time Prev
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/pnelkhckhbbgaeilofckgeajggipnmkf.svg)](https://chromewebstore.google.com/detail/whatsapp-web-customizer/... )
 [![Chrome Web Store Users](https://img.shields.io/chrome-web-store/users/pnelkhckhbbgaeilofckgeajggipnmkf?label=users&logo=google-chrome&logoColor=white&color=4285F4)](https://chromewebstore.google.com/detail/whatsapp-web-customizer-%E2%80%93/pnelkhckhbbgaeilofckgeajggipnmkf)
-[![GitHub stars](https://img.shields.io/github/stars/YOUR_USERNAME/WhatsApp-Web-Customizer?style=social)](https://github.com/YOUR_USERNAME/WhatsApp-Web-Customizer)
+[![GitHub stars](https://img.shields.io/github/stars/BaskLash/WhatsApp-Web-Customizer?style=social)](https://github.com/BaskLash/WhatsApp-Web-Customizer)
 [![License](https://img.shields.io/github/license/BaskLash/WhatsApp-Web-Customizer)](LICENSE)
 
 ## ✨ Features
