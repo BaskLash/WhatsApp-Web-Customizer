@@ -1,14 +1,53 @@
 # WhatsApp Web Customizer
 
-Compared to the preexisting browser addons, this reaches a whole new level, because it has been made for this reason.
-Compared to other extension, this one embraces the WhatsApp Web Experience like it was just meant to be by WhatsApp itself, but it doesn't.
+**Personalize WhatsApp Web like never before** — custom themes, backgrounds, 500+ fonts, animated effects, minimal mode, quick-reply bubbles, and AI-powered text suggestions.  
+Lightweight • Open Source • Privacy-First • No Tracking • Real-time Preview
 
-A lot of people are waiting for many features to be applied on the web version of whatsapp. But they are just too slow and can't even handle to deliver at a glance like it could have been made for Telegram.
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/pnelkhckhbbgaeilofckgeajggipnmkf.svg)](https://chromewebstore.google.com/detail/whatsapp-web-customizer/... )
+[![Chrome Web Store Users](https://img.shields.io/chrome-web-store/users/pnelkhckhbbgaeilofckgeajggipnmkf?label=users&logo=google-chrome&logoColor=white&color=4285F4)](https://chromewebstore.google.com/detail/whatsapp-web-customizer-%E2%80%93/pnelkhckhbbgaeilofckgeajggipnmkf)
+[![GitHub stars](https://img.shields.io/github/stars/YOUR_USERNAME/WhatsApp-Web-Customizer?style=social)](https://github.com/YOUR_USERNAME/WhatsApp-Web-Customizer)
+[![License](https://img.shields.io/github/license/BaskLash/WhatsApp-Web-Customizer)](LICENSE)
 
-But anyways, you have the possibility to change the color, font, background-images for loads of different sections and the best part is, you don't have to upload anything or reload the page ususally as you would have to do it for other extension, here you don't.
+## ✨ Features
 
-Also you see text bubbles on the chats, so that you can easily quick reply on a persons message, but that will be improved in the future.
+- 🎨 **Custom Backgrounds** — Upload your photos or choose from library for chat, sidebar, welcome screen
+- 🔤 **Fonts** — 500+ Google Fonts + custom font upload
+- 🌈 **Themes & Effects** — Dynamic colors, gradients, Disco Mode, button highlights
+- 🧹 **Minimal Mode** — Hide Archive/Status/Channels for focused chatting
+- 💬 **Quick Reply Bubbles** — Hover previews + fast responses (improvements coming)
+- 🤖 **Smart Text Suggestions** (v1.2+) — AI-powered reply prompts
+- ⚡ **Instant Changes** — Apply customizations live without reload
 
-# Used Links
-1. [svg of buymeacofee](https://www.svgviewer.dev/s/35310/buymeacoffee)
-2. [Color Inputfield](https://jsfiddle.net/3u8v5axs/)
+## Demo / Screenshots
+
+(Add 4-6 screenshots here – before/after, theme picker, background upload, font selector, minimal mode. Use GitHub image hosting or external links.)
+
+![Chat Background Example](<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/a49aee6a-01a1-45d7-86ba-914cf6204aed" />)
+![Theme Selector](<img width="642" height="534" alt="image" src="https://github.com/user-attachments/assets/17428fa1-429b-4566-83cb-fe26455c50f2" />)
+![Minimal Mode](<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/b811b8ea-c54e-4e50-a611-6dbedb494d63" />)
+
+## Installation
+
+1. Install from [Chrome Web Store](https://chromewebstore.google.com/detail/... )
+2. Open https://web.whatsapp.com
+3. Click the extension icon → Customize!
+
+## Roadmap
+
+- AI auto-replies & smart automations
+- Scheduled messages
+- More effects & community themes
+
+## Contributing
+
+Open-source & community-driven!  
+- Star the repo ⭐  
+- Report bugs / suggest features via Issues  
+- Submit PRs for new fonts, themes, fixes  
+- [Buy me a coffee](https://buymeacoffee.com/...) to support development ☕
+
+## License
+
+MIT License – see [LICENSE](LICENSE)
+
+Made with ❤️ for the WhatsApp Web community.
