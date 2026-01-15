@@ -20,11 +20,9 @@ Lightweight • Open Source • Privacy-First • No Tracking • Real-time Prev
 
 ## Demo / Screenshots
 
-(Add 4-6 screenshots here – before/after, theme picker, background upload, font selector, minimal mode. Use GitHub image hosting or external links.)
-
-![Chat Background Example](<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/a49aee6a-01a1-45d7-86ba-914cf6204aed" />)
-![Theme Selector](<img width="642" height="534" alt="image" src="https://github.com/user-attachments/assets/17428fa1-429b-4566-83cb-fe26455c50f2" />)
-![Minimal Mode](<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/b811b8ea-c54e-4e50-a611-6dbedb494d63" />)
+![Chat Background Example](https://github.com/user-attachments/assets/a49aee6a-01a1-45d7-86ba-914cf6204aed)
+![Theme Selector](https://github.com/user-attachments/assets/17428fa1-429b-4566-83cb-fe26455c50f2)
+![Minimal Mode](https://github.com/user-attachments/assets/b811b8ea-c54e-4e50-a611-6dbedb494d63)
 
 ## Installation
 
