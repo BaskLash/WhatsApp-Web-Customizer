@@ -51,60 +51,70 @@ function customThemes() {
         }
 
         // Welcome Page
-        const divs = document.querySelectorAll('div');
+        // Alle div-Elemente im Dokument holen
+        const divs = document.querySelectorAll("div");
         let colgonResult = null;
 
-        divs.forEach(div => {
-            if (div.classList.length !== 1) return;
-            const children = div.children;
-            if (children.length !== 3) return;
-            const allButtons = Array.from(children).every(child => child.tagName === "BUTTON");
-            if (allButtons) colgonResult = div;
+        // Passendes div suchen (3 Buttons, 1 Klasse)
+        divs.forEach((div) => {
+          if (div.classList.length !== 1) return;
+          const children = div.children;
+          if (children.length !== 3) return;
+          const allButtons = Array.from(children).every(
+            (child) => child.tagName === "BUTTON",
+          );
+          if (allButtons) colgonResult = div;
         });
 
         if (colgonResult) {
-            const parent = colgonResult.parentElement;
+          const parent = colgonResult.parentElement;
 
-            if (parent && parent.tagName === "SECTION") {
-                // 1. Hintergrund setzen (Dein gewünschtes Bild statt SVG)
-                parent.style.backgroundImage = `url("${welcomeImage}")`;
-                parent.style.backgroundSize = "cover";
-                parent.style.backgroundPosition = "center";
-                parent.style.backgroundRepeat = "no-repeat";
+          if (parent && parent.tagName === "SECTION") {
+            // 1. Hintergrundbild auf die Section setzen
+            parent.style.backgroundImage = `url("${welcomeImage}")`;
+            parent.style.backgroundSize = "cover";
+            parent.style.backgroundPosition = "center";
+            parent.style.backgroundRepeat = "no-repeat";
 
-                // 2. Inhalt im 5. Kind-Element (Index 4) anpassen
-                const child = parent.children[4];
-                if (child) {
-                    // SVG entfernen/ersetzen (wird hier entfernt, da wir den Hintergrund nutzen)
-                    const existingSvg = child.querySelector("svg");
-                    if (existingSvg) existingSvg.remove();
+            // 2. Section-Layout für die Texte vorbereiten
+            parent.style.position = "relative";
+            parent.style.display = "flex";
+            parent.style.flexDirection = "column";
+            parent.style.alignItems = "center";
+            parent.style.justifyContent = "center";
+            parent.style.textAlign = "center";
 
-                    // H1 anpassen oder erstellen
-                    let header = child.querySelector("h1");
-                    if (!header) {
-                        header = document.createElement("h1");
-                        child.prepend(header);
-                    }
-                    header.textContent = "Welcome To WhatsApp Web";
-                    header.style.color = "white"; // Optional für bessere Lesbarkeit
+            // 3. Überprüfung: Existieren die Texte schon?
+            if (!document.getElementById("custom-welcome-title")) {
+              // H1 Text direkt in die Section einfügen
+              const h1 = document.createElement("h1");
+              h1.id = "custom-welcome-title"; // Eindeutige ID vergeben
+              h1.textContent = "Welcome To WhatsApp Web";
+              h1.style.color = "white";
+              h1.style.fontSize = "36px";
+              h1.style.fontWeight = "bold";
+              h1.style.textShadow = "2px 2px 8px rgba(0,0,0,0.7)";
+              h1.style.zIndex = "10";
+              h1.style.margin = "0";
+              parent.appendChild(h1);
 
-                    // H2 erstellen (unter dem H1)
-                    let subHeader = child.querySelector("h2");
-                    if (!subHeader) {
-                        subHeader = document.createElement("h2");
-                        header.after(subHeader);
-                    }
-                    subHeader.textContent = "Thanks for using WhatsApp Web Customizer!";
-                    subHeader.style.color = "white"; // Optional
+              // H2 Text direkt darunter einfügen
+              const h2 = document.createElement("h2");
+              h2.id = "custom-welcome-subtitle"; // Eindeutige ID vergeben
+              h2.textContent = "Thanks for using WhatsApp Web Customizer!";
+              h2.style.color = "rgba(255, 255, 255, 0.9)";
+              h2.style.fontSize = "20px";
+              h2.style.fontWeight = "400";
+              h2.style.textShadow = "1px 1px 5px rgba(0,0,0,0.7)";
+              h2.style.zIndex = "10";
+              h2.style.marginTop = "10px";
+              parent.appendChild(h2);
 
-                    // Alten Paragraphen und Download-Button entfernen
-                    const paragraph = child.querySelector(".x14mdic9");
-                    if (paragraph) paragraph.remove();
-
-                    const download = child.querySelector(".x1ci5j9l.x78zum5.xl56j7k");
-                    if (download) download.remove();
-                }
+              console.log("Texte wurden neu erstellt.");
+            } else {
+              console.log("Texte existieren bereits – kein Duplikat erstellt.");
             }
+          }
         }
 
         // Chat list items

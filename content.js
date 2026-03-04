@@ -1,223 +1,117 @@
 // Hauptfunktion: Initialisiert das Burger-Menü und die Logik für die Navigation
 function initBurgerMenu() {
-  // Selektor für den Container, in dem das Burger-Menü eingefügt wird
-  const containerSelector =
-    ".x1c4vz4f.xs83m0k.xdl72j9.x1g77sc7.x78zum5.xozqiw3.x1oa3qoh.x12fk4p8.xeuugli.x2lwn1j.x1nhvcw1.xdt5ytf.x1cy8zhl.x1277o0a";
+  // Selektoren als Strings speichern
+  const containerSelector = ".x1c4vz4f.xs83m0k.xdl72j9.x1g77sc7.x78zum5.xozqiw3.x1oa3qoh.x12fk4p8.xeuugli.x2lwn1j.x1nhvcw1.xdt5ytf.x1cy8zhl.x1277o0a";
+  const homeChatHeaderSelector = "div[class] > header:first-child";
 
-  // Selektor für die Home-Chat-Übersicht
-  const homeChatSelector = ".two > :nth-child(4)";
+  // Hilfsfunktion: Findet das Div, das den Header enthält
+  const getHomeChatElement = () => document.querySelector(homeChatHeaderSelector)?.parentElement;
 
-  // Funktion zum Initialisieren des Burger-Menüs
   function tryInit() {
     const container = document.querySelector(containerSelector);
-    if (!container) return; // Beende, wenn Container nicht gefunden
-    if (document.querySelector(".custom-burger-menu")) return; // Beende, wenn Burger-Menü bereits existiert
+    if (!container) return; 
+    if (document.querySelector(".custom-burger-menu")) return;
 
-    // Erstelle den Burger-Menü-Button
+    // Button erstellen
     const burgerButton = document.createElement("button");
     burgerButton.className = "custom-burger-menu";
     burgerButton.title = "Navigation ein-/ausblenden";
     burgerButton.innerHTML = `<span></span><span></span><span></span>`;
 
-    // Füge Styling für den Burger-Button hinzu
+    // Styling hinzufügen
     const style = document.createElement("style");
     style.textContent = `
       .custom-burger-menu {
-        display: inline-flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        width: 40px;
-        height: 36px;
-        background: #444;
-        border: none;
-        cursor: pointer;
-        padding: 6px;
-        border-radius: 6px;
-        z-index: 9999;
-        transition: transform 0.2s ease, background-color 0.3s ease;
+        display: inline-flex; flex-direction: column; justify-content: center; align-items: center;
+        width: 40px; height: 36px; background: #444; border: none; cursor: pointer;
+        padding: 6px; border-radius: 6px; z-index: 9999; transition: all 0.2s ease;
       }
-      .custom-burger-menu span {
-        display: block;
-        width: 24px;
-        height: 3px;
-        background: #fff;
-        border-radius: 2px;
-        margin: 3px 0;
-        transition: background-color 0.3s ease, transform 0.3s ease;
-      }
-      .custom-burger-menu:hover {
-        background-color: #666;
-        transform: scale(1.05);
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-      }
-      .custom-burger-menu:hover span {
-        background-color: #fff;
-        transform: scaleX(1.1);
-      }
+      .custom-burger-menu span { display: block; width: 24px; height: 3px; background: #fff; border-radius: 2px; margin: 3px 0; }
+      .custom-burger-menu:hover { background-color: #666; transform: scale(1.05); }
     `;
     document.head.appendChild(style);
 
-    // Funktion zum Abrufen des gespeicherten Display-Status aus chrome.storage
-    const getSavedDisplayState = async (key) => {
+    // Storage Funktionen
+    const getSavedDisplayState = (key) => {
       return new Promise((resolve) => {
-        chrome.storage.local.get([key], (result) => {
-          resolve(result[key] || "block"); // Standard: sichtbar, wenn nicht gespeichert
-        });
+        chrome.storage.local.get([key], (result) => resolve(result[key] || "block"));
       });
     };
 
-    // Funktion zum Speichern des Display-Status in chrome.storage
     const saveDisplayState = (key, value) => {
       chrome.storage.local.set({ [key]: value });
     };
 
-    // Funktion zum Ein-/Ausblenden von Elementen und Speichern des Zustands
+    // Toggle Logik
     const toggleDisplay = (element, homeChatElement, key) => {
-      if (!element || !homeChatElement) return;
+      if (!element) return;
       const currentDisplay = window.getComputedStyle(element).display;
       const newDisplay = currentDisplay === "none" ? "block" : "none";
+      
       element.style.display = newDisplay;
-      homeChatElement.style.display = newDisplay; // Synchronisiere Home-Chat-Übersicht
+      if (homeChatElement) homeChatElement.style.display = newDisplay;
       saveDisplayState(key, newDisplay);
     };
 
-    // Funktion zum Anwenden des gespeicherten Zustands
-    const applySavedState = async (
-      elementSelector,
-      storageKey,
-      homeChatElement
-    ) => {
-      const element = document.querySelector(elementSelector);
-      if (element && homeChatElement) {
-        const savedState = await getSavedDisplayState(storageKey);
+    // Zustand anwenden
+    const applySavedState = async (elementSelector, storageKey, isHomeChat = false) => {
+      const savedState = await getSavedDisplayState(storageKey);
+      const element = isHomeChat ? getHomeChatElement() : document.querySelector(elementSelector);
+      
+      if (element) {
         element.style.display = savedState;
-        homeChatElement.style.display = savedState; // Synchronisiere Home-Chat
       }
     };
 
-    // Event-Listener für den Burger-Button
+    // Click Event
     burgerButton.addEventListener("click", async () => {
-      const homeChatElement = document.querySelector(homeChatSelector);
+      const homeChatElement = getHomeChatElement();
+      
+      const statusActive = document.querySelector("button[aria-label='Status'][aria-pressed='true']");
+      const channelsActive = document.querySelector("button[aria-label='Channels'][aria-pressed='true']");
+      const communitiesActive = document.querySelector("button[aria-label='Communities'][aria-pressed='true']");
 
-      // Prüfe, welcher Button aktiv ist (aria-pressed="true")
-      const statusActive = document.querySelector(
-        "button[aria-label='Status'][aria-pressed='true']"
-      );
-      const channelsActive = document.querySelector(
-        "button[aria-label='Channels'][aria-pressed='true']"
-      );
-      const communitiesActive = document.querySelector(
-        "button[aria-label='Communities'][aria-pressed='true']"
-      );
-
-      // Behandle den aktiven Bereich
       if (statusActive) {
-        const statusElement = document.querySelector(
-          "div[aria-label='Status tab drawer']"
-        );
-        toggleDisplay(statusElement, homeChatElement, "statusDisplay");
+        toggleDisplay(document.querySelector("div[aria-label='Status tab drawer']"), homeChatElement, "statusDisplay");
       } else if (channelsActive) {
-        const channelsElement = document.querySelector(
-          "div[aria-label='Channel tab drawer']"
-        );
-        toggleDisplay(channelsElement, homeChatElement, "channelsDisplay");
+        toggleDisplay(document.querySelector("div[aria-label='Channel tab drawer']"), homeChatElement, "channelsDisplay");
       } else if (communitiesActive) {
-        const communitiesElement = document.querySelector(
-          "div[aria-label='Community tab drawer']"
-        );
-        toggleDisplay(
-          communitiesElement,
-          homeChatElement,
-          "communitiesDisplay"
-        );
+        toggleDisplay(document.querySelector("div[aria-label='Community tab drawer']"), homeChatElement, "communitiesDisplay");
       } else {
-        // Standardfall: Haupt-Navigationsbereich (Chats)
         toggleDisplay(homeChatElement, homeChatElement, "chatsDisplay");
       }
     });
 
-    // Event-Listener für Navigation-Buttons, um gespeicherten Zustand sofort anzuwenden
-    const applySavedStateOnClick = (
-      buttonSelector,
-      elementSelector,
-      storageKey
-    ) => {
-      const button = document.querySelector(buttonSelector);
-      if (button) {
-        button.addEventListener("click", async () => {
-          // Warte kurz, um sicherzustellen, dass WhatsApp Web die DOM-Änderungen vorgenommen hat
-          setTimeout(async () => {
-            const homeChatElement = document.querySelector(homeChatSelector);
-            await applySavedState(elementSelector, storageKey, homeChatElement);
-          }, 100); // Kurze Verzögerung für DOM-Updates
+    // Nav-Buttons Listener
+    const setupNavButton = (btnSelector, targetSelector, storageKey, isHomeChat = false) => {
+      const btn = document.querySelector(btnSelector);
+      if (btn) {
+        btn.addEventListener("click", () => {
+          setTimeout(() => applySavedState(targetSelector, storageKey, isHomeChat), 150);
         });
       }
     };
 
-    // Initialisiere Event-Listener für alle Navigations-Buttons
-    applySavedStateOnClick(
-      "button[aria-label='Chats']",
-      homeChatSelector,
-      "chatsDisplay"
-    );
-    applySavedStateOnClick(
-      "button[aria-label='Status']",
-      "div[aria-label='Status tab drawer']",
-      "statusDisplay"
-    );
-    applySavedStateOnClick(
-      "button[aria-label='Channels']",
-      "div[aria-label='Channel tab drawer']",
-      "channelsDisplay"
-    );
-    applySavedStateOnClick(
-      "button[aria-label='Communities']",
-      "div[aria-label='Community tab drawer']",
-      "communitiesDisplay"
-    );
+    setupNavButton("button[aria-label='Chats']", homeChatHeaderSelector, "chatsDisplay", true);
+    setupNavButton("button[aria-label='Status']", "div[aria-label='Status tab drawer']", "statusDisplay");
+    setupNavButton("button[aria-label='Channels']", "div[aria-label='Channel tab drawer']", "channelsDisplay");
+    setupNavButton("button[aria-label='Communities']", "div[aria-label='Community tab drawer']", "communitiesDisplay");
 
-    // Füge den Burger-Button in den Container ein
     container.insertBefore(burgerButton, container.firstChild);
 
-    // Initialisiere den gespeicherten Zustand für alle Bereiche
-    const initializeSavedStates = async () => {
-      const homeChatElement = document.querySelector(homeChatSelector);
-      await applySavedState(homeChatSelector, "chatsDisplay", homeChatElement);
-      await applySavedState(
-        "div[aria-label='Status tab drawer']",
-        "statusDisplay",
-        homeChatElement
-      );
-      await applySavedState(
-        "div[aria-label='Channel tab drawer']",
-        "channelsDisplay",
-        homeChatElement
-      );
-      await applySavedState(
-        "div[aria-label='Community tab drawer']",
-        "communitiesDisplay",
-        homeChatElement
-      );
+    // Initialen Zustand laden
+    const initStates = async () => {
+      await applySavedState(homeChatHeaderSelector, "chatsDisplay", true);
+      await applySavedState("div[aria-label='Status tab drawer']", "statusDisplay");
+      await applySavedState("div[aria-label='Channel tab drawer']", "channelsDisplay");
+      await applySavedState("div[aria-label='Community tab drawer']", "communitiesDisplay");
     };
-    initializeSavedStates();
+    initStates();
   }
 
-  // Polling-Mechanismus, um auf das Laden der Elemente zu warten
-  const maxAttempts = 20;
-  let attemptCount = 0;
   const interval = setInterval(() => {
     tryInit();
-    if (document.querySelector(containerSelector)) {
-      clearInterval(interval);
-    }
-    attemptCount++;
-    if (attemptCount >= maxAttempts) {
-      clearInterval(interval);
-      console.warn(
-        "Burger-Menü konnte nicht initialisiert werden: Maximale Versuche erreicht."
-      );
-    }
+    if (document.querySelector(containerSelector)) clearInterval(interval);
   }, 500);
 }
 
@@ -350,25 +244,5 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "local" && changes.fontStyle) {
     const newFont = changes.fontStyle.newValue || "";
     applyFont(newFont);
-  }
-});
-
-// --- FONT SCALING LOGIC ---
-
-function applyInterfaceScale(scale) {
-  if (!scale) return;
-  document.body.style.zoom = scale;
-}
-
-// 1. Initial load
-chrome.storage.local.get(["wa-custom-scale"], (result) => {
-  const savedScale = result["wa-custom-scale"] || 1;
-  applyInterfaceScale(savedScale);
-});
-
-// 2. Live updates from popup
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === "local" && changes["wa-custom-scale"]) {
-    applyInterfaceScale(changes["wa-custom-scale"].newValue);
   }
 });
