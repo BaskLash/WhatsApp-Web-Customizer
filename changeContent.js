@@ -51,40 +51,60 @@ function customThemes() {
         }
 
         // Welcome Page
-        if (
-          parent &&
-          welcomeImage &&
-          !document.querySelector("[title='Profile details']")
-        ) {
-          const child = parent.children[4];
-          if (child) {
-            const svg = child.querySelector("svg");
-            if (
-              svg &&
-              !(
-                svg.parentElement.tagName === "SPAN" &&
-                svg.parentElement.dataset.icon === "lock-outline"
-              )
-            ) {
-              const img = document.createElement("img");
-              img.src = welcomeImage;
-              img.alt = "Welcome Image";
-              img.style.maxWidth = "100%";
-              img.style.maxHeight = "100%";
-              svg.replaceWith(img);
+        const divs = document.querySelectorAll('div');
+        let colgonResult = null;
+
+        divs.forEach(div => {
+            if (div.classList.length !== 1) return;
+            const children = div.children;
+            if (children.length !== 3) return;
+            const allButtons = Array.from(children).every(child => child.tagName === "BUTTON");
+            if (allButtons) colgonResult = div;
+        });
+
+        if (colgonResult) {
+            const parent = colgonResult.parentElement;
+
+            if (parent && parent.tagName === "SECTION") {
+                // 1. Hintergrund setzen (Dein gewünschtes Bild statt SVG)
+                parent.style.backgroundImage = `url("${welcomeImage}")`;
+                parent.style.backgroundSize = "cover";
+                parent.style.backgroundPosition = "center";
+                parent.style.backgroundRepeat = "no-repeat";
+
+                // 2. Inhalt im 5. Kind-Element (Index 4) anpassen
+                const child = parent.children[4];
+                if (child) {
+                    // SVG entfernen/ersetzen (wird hier entfernt, da wir den Hintergrund nutzen)
+                    const existingSvg = child.querySelector("svg");
+                    if (existingSvg) existingSvg.remove();
+
+                    // H1 anpassen oder erstellen
+                    let header = child.querySelector("h1");
+                    if (!header) {
+                        header = document.createElement("h1");
+                        child.prepend(header);
+                    }
+                    header.textContent = "Welcome To WhatsApp Web";
+                    header.style.color = "white"; // Optional für bessere Lesbarkeit
+
+                    // H2 erstellen (unter dem H1)
+                    let subHeader = child.querySelector("h2");
+                    if (!subHeader) {
+                        subHeader = document.createElement("h2");
+                        header.after(subHeader);
+                    }
+                    subHeader.textContent = "Thanks for using WhatsApp Web Customizer!";
+                    subHeader.style.color = "white"; // Optional
+
+                    // Alten Paragraphen und Download-Button entfernen
+                    const paragraph = child.querySelector(".x14mdic9");
+                    if (paragraph) paragraph.remove();
+
+                    const download = child.querySelector(".x1ci5j9l.x78zum5.xl56j7k");
+                    if (download) download.remove();
+                }
             }
-
-            const header = child.querySelector("h1");
-            if (header) header.textContent = "Welcome To WhatsApp Web";
-
-            const paragraph = child.querySelector(".x14mdic9");
-            if (paragraph)
-              paragraph.textContent =
-                "Thanks for using WhatsApp Web Customizer!";
-
-            const download = child.querySelector(".x1ci5j9l.x78zum5.xl56j7k");
-            if (download) download.remove();
-          }
         }
 
         // Chat list items
