@@ -38,8 +38,8 @@
       font-family: "Inter", sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
-      width: 700px;
-      height: 600px;
+      width: 1000px;          /* größer */
+  max-width: 100%;        /* verhindert overflow */
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -55,10 +55,11 @@
     }
 
     .container {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: 10px;              /* NEU: Abstand zwischen Panels */
+}
 
     .left-panel,
     .middle-panel,
@@ -69,17 +70,17 @@
     }
 
     .left-panel {
-      flex: 1;
-    }
+  flex: 0 0 200px;        /* feste Mindestbreite */
+}
 
-    .middle-panel {
-      flex: 1.5;
-    }
+.middle-panel {
+  flex: 1;                /* nimmt ALLES übrige */
+  min-width: 0;           /* 🔥 verhindert Overflow-Bugs */
+}
 
-    .right-panel {
-      flex: 1;
-      border-right: none;
-    }
+.right-panel {
+  flex: 0 0 220px;        /* leicht größer für Controls */
+}
 
     h3 {
       font-size: 14px;
@@ -542,7 +543,7 @@
 </head>
 
 <body>
-  <h1>WhatsApp Customizer</h1>
+  <h1>WhatsApp Web Customizer</h1>
   <div class="container">
     <div class="left-panel">
       <h3>Toggle Elements</h3>
@@ -588,51 +589,57 @@
     </div>
 
     <div class="middle-panel">
-      <div class="section">
-        <h3>Welcome Page</h3>
-        <div class="image-selector" id="welcome-selector">
-          <div class="image-option" data-type="welcome">
-            <img id="welcome-preview" src="default.jpg" alt="Welcome Preview" />
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <h3>NavSide Navigation</h3>
-        <div class="image-selector" id="navside-selector">
-          <div class="image-option" data-type="navside">
-            <img id="navside-preview" src="default.jpg" alt="Nav Preview" />
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <h3>Side Navigation</h3>
-        <div class="image-selector" id="sidenav-selector">
-          <div class="image-option" data-type="sidenav">
-            <img id="sidenav-preview" src="default.jpg" alt="Nav Preview" />
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <h3>Chat View</h3>
-        <div class="image-selector" id="chatview-selector">
-          <div class="image-option" data-type="chatview">
-            <img id="chatview-preview" src="default.jpg" alt="Chat Preview" />
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <h3>Quick Replies</h3>
-        <div id="qr-list"></div>
-        <div class="qr-add-row">
-          <input type="text" id="qr-new-input" placeholder="Type a new quick reply…" maxlength="200" />
-          <button id="qr-add-btn">Add</button>
+      <!-- Neues Panel für Quick Replies -->
+  <div class="section" style="margin-top: 20px;">
+    <h3>Quick Replies</h3>
+    <div id="qr-list"></div>
+    <div class="qr-add-row">
+      <input type="text" id="qr-new-input" placeholder="Type a new quick reply…" maxlength="200" />
+      <button id="qr-add-btn">Add</button>
+    </div>
+  </div>
+  
+  <!-- Obere Reihe nur für Welcome Page -->
+  <div class="top-row" style="display: flex; gap: 20px; align-items: flex-start;">
+    <div class="section" style="flex: 1;">
+      <h3>Welcome Page</h3>
+      <div class="image-selector" id="welcome-selector">
+        <div class="image-option" data-type="welcome">
+          <img id="welcome-preview" src="default.jpg" alt="Welcome Preview" />
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Restliche Sections wie NavSide, Side Navigation, Chat View -->
+  <div class="section">
+    <h3>NavSide Navigation</h3>
+    <div class="image-selector" id="navside-selector">
+      <div class="image-option" data-type="navside">
+        <img id="navside-preview" src="default.jpg" alt="Nav Preview" />
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Side Navigation</h3>
+    <div class="image-selector" id="sidenav-selector">
+      <div class="image-option" data-type="sidenav">
+        <img id="sidenav-preview" src="default.jpg" alt="Nav Preview" />
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Chat View</h3>
+    <div class="image-selector" id="chatview-selector">
+      <div class="image-option" data-type="chatview">
+        <img id="chatview-preview" src="default.jpg" alt="Chat Preview" />
+      </div>
+    </div>
+  </div>
+</div>
+
 
     <div class="right-panel">
       <div class="section">
