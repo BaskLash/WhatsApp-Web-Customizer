@@ -14,6 +14,7 @@
   <script src="popup.js" defer></script>
   <script src="fontSizeChange.js" defer></script>
   <script src="imageSelection.js" defer></script>
+  <script src="quick-replies.js" defer></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -425,6 +426,118 @@
   gap: 8px;
   margin-bottom: 10px;
 }
+
+    /* Quick Replies Editor */
+    #qr-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .qr-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 6px 10px;
+      gap: 8px;
+    }
+
+    .qr-text {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text-color);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .qr-edit-input {
+      flex: 1;
+      background: var(--bg-color);
+      border: 1px solid var(--accent-color);
+      border-radius: 4px;
+      color: var(--text-color);
+      font-size: 13px;
+      padding: 2px 6px;
+      outline: none;
+      width: 0;
+    }
+
+    .qr-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .qr-btn {
+      width: auto !important;
+      padding: 3px 7px !important;
+      font-size: 12px !important;
+      margin-bottom: 0 !important;
+      border: none !important;
+      border-radius: 4px !important;
+      cursor: pointer;
+      background: var(--card-bg) !important;
+      color: var(--text-color) !important;
+      transition: background 0.2s !important;
+    }
+
+    .qr-btn:hover {
+      background: var(--accent-color) !important;
+      color: #fff !important;
+      box-shadow: none !important;
+    }
+
+    .qr-delete-btn:hover {
+      background: #dc2626 !important;
+    }
+
+    .qr-add-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    #qr-new-input {
+      flex: 1;
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-color);
+      font-size: 13px;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 0;
+    }
+
+    #qr-new-input:focus {
+      border-color: var(--accent-color);
+    }
+
+    #qr-add-btn {
+      width: auto !important;
+      padding: 8px 14px !important;
+      margin-bottom: 0 !important;
+      background: var(--accent-color) !important;
+      color: #fff !important;
+      border: none !important;
+      border-radius: 6px !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    #qr-add-btn:hover {
+      background: var(--accent-hover) !important;
+      box-shadow: var(--glow) !important;
+    }
   </style>
 </head>
 
@@ -508,6 +621,15 @@
           <div class="image-option" data-type="chatview">
             <img id="chatview-preview" src="default.jpg" alt="Chat Preview" />
           </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Quick Replies</h3>
+        <div id="qr-list"></div>
+        <div class="qr-add-row">
+          <input type="text" id="qr-new-input" placeholder="Type a new quick reply…" maxlength="200" />
+          <button id="qr-add-btn">Add</button>
         </div>
       </div>
     </div>
