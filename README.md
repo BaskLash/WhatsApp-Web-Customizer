@@ -3,6 +3,7 @@
 **Personalize WhatsApp Web like never before** — custom themes, backgrounds, 500+ fonts, animated effects, minimal mode, quick-reply bubbles, and AI-powered text suggestions.  
 Lightweight • Open Source • Privacy-First • No Tracking • Real-time Preview
 
+![Visitor Count](https://hits.sh/github.com/BaskLash/WhatsApp-Web-Customizer.svg)
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/pnelkhckhbbgaeilofckgeajggipnmkf.svg)](https://chromewebstore.google.com/detail/whatsapp-web-customizer/... )
 [![Chrome Web Store Users](https://img.shields.io/chrome-web-store/users/pnelkhckhbbgaeilofckgeajggipnmkf?label=users&logo=google-chrome&logoColor=white&color=4285F4)](https://chromewebstore.google.com/detail/whatsapp-web-customizer-%E2%80%93/pnelkhckhbbgaeilofckgeajggipnmkf)
 [![GitHub stars](https://img.shields.io/github/stars/BaskLash/WhatsApp-Web-Customizer?style=social)](https://github.com/BaskLash/WhatsApp-Web-Customizer)
@@ -17,6 +18,14 @@ Lightweight • Open Source • Privacy-First • No Tracking • Real-time Prev
 - 💬 **Quick Reply Bubbles** — Hover previews + fast responses (improvements coming)
 - 🤖 **Smart Text Suggestions** (v1.2+) — AI-powered reply prompts
 - ⚡ **Instant Changes** — Apply customizations live without reload
+
+## 💡 Quick Replies Customization
+
+Quick Replies are fully customizable:  
+- Add, edit, or remove your own pre-defined messages  
+- Organize responses for fast access while chatting  
+- See live previews of your Quick Replies before using them  
+- Designed for speed and personalization to enhance your messaging workflow
 
 ## Demo / Screenshots
 
