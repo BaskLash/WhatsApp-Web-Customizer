@@ -202,6 +202,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// Apply zoom-based scaling to the whole WhatsApp Web page.
+// Using CSS `zoom` (Chrome-only, but this is a Chrome extension) so that
+// the entire layout shrinks/grows — ideal for small-window setups.
+function applyFontScale(scale) {
+  let style = document.getElementById("wa-font-scale-style");
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "wa-font-scale-style";
+    document.head.appendChild(style);
+  }
+  style.innerHTML = (scale && scale !== 1)
+    ? `html { zoom: ${scale}; }`
+    : "";
+}
+
+// Load saved scale on page load
+chrome.storage.local.get(["wa-custom-scale"], (result) => {
+  applyFontScale(Number(result["wa-custom-scale"] ?? 1));
+});
+
+// Re-apply whenever the popup changes the value
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "local" && changes["wa-custom-scale"]) {
+    applyFontScale(Number(changes["wa-custom-scale"].newValue ?? 1));
+  }
+});
+
 // Funktion, die die Schrift global setzt
 function applyFont(fontName) {
   let existingLink = document.getElementById("dynamicFontLink");
