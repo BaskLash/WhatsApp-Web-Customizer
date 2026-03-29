@@ -427,6 +427,33 @@
   margin-bottom: 10px;
 }
 
+    .color-pair {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .color-pair-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .color-pair-label {
+      font-size: 11px;
+      color: #a0a0a0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .color-pair-item input[type="color"] {
+      width: 100%;
+      height: 40px;
+      padding: 4px;
+      margin-bottom: 0;
+    }
+
     /* Quick Replies Editor */
     #qr-list {
       display: flex;
@@ -693,7 +720,16 @@
 
       <div class="section">
         <h3>Color Selection</h3>
-        <input type="color" value="#10b981" />
+        <div class="color-pair">
+          <div class="color-pair-item">
+            <span class="color-pair-label">Incoming</span>
+            <input type="color" id="colorIn" value="#00aaff" />
+          </div>
+          <div class="color-pair-item">
+            <span class="color-pair-label">Outgoing</span>
+            <input type="color" id="colorOut" value="#00ff88" />
+          </div>
+        </div>
         <button type="button" id="discoButton">Disco Color</button>
         <button type="button" id="discoButton2">Bang Bang Color</button>
         <button type="button" id="discoButton3">Reset Color</button>

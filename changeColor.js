@@ -6,28 +6,33 @@ function makeHeaderTransparent() {
   }
 }
 
-// Inject (or update) a global <style> tag that targets bubble selectors directly.
-// Because it lives in <head>, it automatically covers all messages including those
-// loaded after a chat switch — no per-node class manipulation needed.
-function applyGlowingEffect(colors) {
-  if (!Array.isArray(colors)) colors = [colors];
-
-  const keyframes = colors
-    .map((c, i) => {
-      const percent = Math.floor((i / colors.length) * 100);
-      return `${percent}% { box-shadow: 0 0 5px ${c}, 0 0 10px ${c}; }`;
-    })
-    .join("\n") +
-    `\n100% { box-shadow: 0 0 5px ${colors[colors.length - 1]}, 0 0 10px ${colors[colors.length - 1]}; }`;
-
+// Build and inject a global <style> tag with differentiated glow animations.
+// colorIn  → received messages (.message-in)
+// colorOut → sent messages    (.message-out)
+// Scoped to the active chat panel so no system UI is affected.
+function applyGlowingEffect(colorIn, colorOut) {
   const styleContent = `
-    @keyframes glowingBorder {
-      ${keyframes}
+    @keyframes glowIn {
+      0%   { box-shadow: 0 0 5px ${colorIn},  0 0 10px ${colorIn};  }
+      100% { box-shadow: 0 0 10px ${colorIn}, 0 0 20px ${colorIn}; }
     }
-    ._amk6, ._amk4 {
+    @keyframes glowOut {
+      0%   { box-shadow: 0 0 5px ${colorOut},  0 0 10px ${colorOut};  }
+      100% { box-shadow: 0 0 10px ${colorOut}, 0 0 20px ${colorOut}; }
+    }
+
+    div[tabindex='0'][data-tab='8'] .message-in ._amk6,
+    div[tabindex='0'][data-tab='8'] .message-in ._amk4 {
       border: 2px solid transparent;
       border-radius: 8px;
-      animation: glowingBorder 2s infinite alternate;
+      animation: glowIn 2s infinite alternate;
+    }
+
+    div[tabindex='0'][data-tab='8'] .message-out ._amk6,
+    div[tabindex='0'][data-tab='8'] .message-out ._amk4 {
+      border: 2px solid transparent;
+      border-radius: 8px;
+      animation: glowOut 2s infinite alternate;
     }
   `;
 
@@ -37,25 +42,34 @@ function applyGlowingEffect(colors) {
     style.id = "glowingBorderStyle";
     document.head.appendChild(style);
   }
-  // Only rewrite the tag when the color actually changed
+  // Only rewrite the tag when the colors actually changed
   if (style.innerHTML !== styleContent) {
     style.innerHTML = styleContent;
   }
+}
+
+// Read both color keys and apply. Centralising the read here ensures
+// that a change to either key always sees the up-to-date value of the other.
+function loadAndApply() {
+  chrome.storage.local.get(["colorIn", "colorOut"], (result) => {
+    applyGlowingEffect(
+      result.colorIn  || "#00aaff",
+      result.colorOut || "#00ff88"
+    );
+  });
 }
 
 // Initialize on load
 function initGlowingFeature() {
   makeHeaderTransparent();
 
-  // 1️⃣ Get initial color and apply
-  chrome.storage.local.get(["color"], (result) => {
-    applyGlowingEffect(result.color || "#ff00ff");
-  });
+  // 1️⃣ Apply saved colors immediately
+  loadAndApply();
 
-  // 2️⃣ Watch for color updates in storage
+  // 2️⃣ Re-apply whenever either color is changed from the popup
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === "local" && changes.color) {
-      applyGlowingEffect(changes.color.newValue || "#ff00ff");
+    if (areaName === "local" && (changes.colorIn || changes.colorOut)) {
+      loadAndApply();
     }
   });
 }

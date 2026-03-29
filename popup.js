@@ -1,4 +1,3 @@
-// popup.js (minor adjustments for consistency and to ensure immediate apply)
 const checkboxIds = [
   "status",
   "channels",
@@ -10,7 +9,7 @@ const checkboxIds = [
 function loadOptions() {
   chrome.storage.local.get(["visibilityOptions"], (data) => {
     const options = data.visibilityOptions || {
-      status: false, // Changed default to false (hidden) as per your description
+      status: false,
       channels: false,
       communities: false,
       lockedChats: false,
@@ -29,9 +28,7 @@ function saveAndApplyOptions() {
     options[id] = document.getElementById(id).checked;
   });
 
-  // Save to storage
   chrome.storage.local.set({ visibilityOptions: options }, () => {
-    // Send message to content script to apply changes
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs || !tabs[0]) return;
       chrome.scripting.executeScript({
@@ -62,102 +59,67 @@ function applyVisibilityFromPopup(options) {
     }
   }
 
-  // Handle Locked Chats and Archived
   const paneSide = document.getElementById("pane-side");
   if (paneSide) {
-    const lockedChats = paneSide.querySelector(
-      "button[aria-label='Locked chats']"
-    );
+    const lockedChats = paneSide.querySelector("button[aria-label='Locked chats']");
     const archived = paneSide.querySelector("button[aria-label='Archived ']");
 
-    if (lockedChats) {
-      lockedChats.style.display = options.lockedChats ? "block" : "none";
-    }
-
-    if (archived) {
-      archived.style.display = options.archived ? "block" : "none";
-    }
+    if (lockedChats) lockedChats.style.display = options.lockedChats ? "block" : "none";
+    if (archived)    archived.style.display    = options.archived    ? "block" : "none";
   }
 }
 
-// Hook up listeners
 checkboxIds.forEach((id) => {
   document.getElementById(id).addEventListener("change", saveAndApplyOptions);
 });
 
 loadOptions();
-// Color Input auswählen
-const colorInput = document.querySelector("input[type='color']");
 
-if (colorInput) {
-  // 1️⃣ Gespeicherte Farbe beim Laden des Popups setzen
-  chrome.storage.local.get(["color"], (result) => {
-    if (result.color) {
-      colorInput.value = result.color;
-      console.log("Gespeicherte Farbe geladen:", result.color);
-    }
-  });
+// ── Color Selection ───────────────────────────────────────────────────────────
+const colorInInput  = document.getElementById("colorIn");
+const colorOutInput = document.getElementById("colorOut");
 
-  // 2️⃣ Beim Ändern des Inputs den Wert speichern
-  colorInput.addEventListener("input", (e) => {
-    const selectedColor = e.target.value; // z. B. "#ff0000"
+// Load saved colors into the pickers on popup open
+chrome.storage.local.get(["colorIn", "colorOut"], (result) => {
+  if (result.colorIn)  colorInInput.value  = result.colorIn;
+  if (result.colorOut) colorOutInput.value = result.colorOut;
+});
 
-    // In chrome.storage.local unter "color" speichern
-    chrome.storage.local.set({ color: selectedColor }, () => {
-      console.log("Farbe gespeichert:", selectedColor);
-    });
-  });
-}
-document.getElementById("discoButton").addEventListener("click", function () {
-  // Disco-Farben als Array
-  const discoColors = ["#ff00ff", "#00ffff", "#ff00ff"];
+// Save whenever the user picks a new color — changeColor.js reacts via onChanged
+colorInInput.addEventListener("input", (e) => {
+  chrome.storage.local.set({ colorIn: e.target.value });
+});
+colorOutInput.addEventListener("input", (e) => {
+  chrome.storage.local.set({ colorOut: e.target.value });
+});
 
-  // In chrome.storage.local speichern
-  chrome.storage.local.set({ color: discoColors }, () => {
-    console.log("Disco-Farben gespeichert:", discoColors);
-
-    // Optional: direkt das Color Input auf die erste Farbe setzen
-    const colorInput = document.querySelector("input[type='color']");
-    if (colorInput) colorInput.value = discoColors[0];
+// Preset buttons — each sets both channels to a themed pair
+document.getElementById("discoButton").addEventListener("click", () => {
+  chrome.storage.local.set({ colorIn: "#ff00ff", colorOut: "#00ffff" }, () => {
+    colorInInput.value  = "#ff00ff";
+    colorOutInput.value = "#00ffff";
   });
 });
 
-document.getElementById("discoButton2").addEventListener("click", function () {
-  // Neue Disco-Farben als Array
-  const discoColors = ["#ff0000", "#00ff00", "#0000ff"]; // Rot, Grün, Blau
-
-  // In chrome.storage.local speichern
-  chrome.storage.local.set({ color: discoColors }, () => {
-    console.log("Disco-Farben gespeichert:", discoColors);
-
-    // Optional: direkt das Color Input auf die erste Farbe setzen
-    const colorInput = document.querySelector("input[type='color']");
-    if (colorInput) colorInput.value = discoColors[0];
+document.getElementById("discoButton2").addEventListener("click", () => {
+  chrome.storage.local.set({ colorIn: "#ff0000", colorOut: "#00ff00" }, () => {
+    colorInInput.value  = "#ff0000";
+    colorOutInput.value = "#00ff00";
   });
 });
 
-document.getElementById("discoButton3").addEventListener("click", function () {
-  // Farben leeren
-  const emptyColors = [];
-
-  // In chrome.storage.local speichern
-  chrome.storage.local.set({ color: emptyColors }, () => {
-    console.log("Farben geleert");
-
-    // Color Input zurücksetzen (optional auf Standardwert #000000)
-    const colorInput = document.querySelector("input[type='color']");
-    if (colorInput) colorInput.value = "#000000";
+document.getElementById("discoButton3").addEventListener("click", () => {
+  // Reset to defaults
+  chrome.storage.local.set({ colorIn: "#00aaff", colorOut: "#00ff88" }, () => {
+    colorInInput.value  = "#00aaff";
+    colorOutInput.value = "#00ff88";
   });
 });
 
-document
-      .getElementById("report-bug")
-      .addEventListener("click", () => {
-        window.open("https://forms.gle/U7jteYT8hpM19pWZA", "_blank");
-      });
+document.getElementById("report-bug").addEventListener("click", () => {
+  window.open("https://forms.gle/U7jteYT8hpM19pWZA", "_blank");
+});
 
-      document
-      .getElementById("feature-request")
-      .addEventListener("click", () => {
-        window.open("https://forms.gle/9Svkf6pVknArjamz9", "_blank");
-      });
+document.getElementById("feature-request").addEventListener("click", () => {
+  window.open("https://forms.gle/9Svkf6pVknArjamz9", "_blank");
+});
