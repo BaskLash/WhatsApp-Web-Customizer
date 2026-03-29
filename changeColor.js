@@ -1,116 +1,77 @@
-// Cache last applied glowing colors to avoid unnecessary updates
-let lastAppliedColors = null;
-
 // Utility: Apply transparency to the header once
 function makeHeaderTransparent() {
-  const header = document.querySelector("header"); // Replace with actual header selector
+  const header = document.querySelector("header");
   if (header && header.style.background !== "transparent") {
     header.style.background = "transparent";
-    console.log("Making header transparent");
   }
 }
 
-// Apply glowing effect to chat message elements
-function applyGlowingEffect(colors) {
-  const main = document.querySelector("div[tabindex='0'][data-tab='8']");
-  if (!main) return;
-
-  // Normalize to array
-  if (!Array.isArray(colors)) colors = [colors];
-
-  // Skip if colors haven't changed
-  const colorSignature = colors.join(",");
-  if (lastAppliedColors === colorSignature) return;
-  lastAppliedColors = colorSignature;
-
-  // Create keyframes for animation
-  const keyframes = colors
-    .map((c, i) => {
-      const percent = Math.floor((i / colors.length) * 100);
-      return `${percent}% { box-shadow: 0 0 5px ${c}, 0 0 10px ${c}; }`;
-    })
-    .join("\n") + `
-100% { box-shadow: 0 0 5px ${colors[colors.length - 1]}, 0 0 10px ${colors[colors.length - 1]}; }`;
-
-  // CSS for glowing border
+// Build and inject a global <style> tag with differentiated glow animations.
+// colorIn  → received messages (.message-in)
+// colorOut → sent messages    (.message-out)
+// Scoped to the active chat panel so no system UI is affected.
+function applyGlowingEffect(colorIn, colorOut) {
   const styleContent = `
-    @keyframes glowingBorder {
-      ${keyframes}
+    @keyframes glowIn {
+      0%   { box-shadow: 0 0 5px ${colorIn},  0 0 10px ${colorIn};  }
+      100% { box-shadow: 0 0 10px ${colorIn}, 0 0 20px ${colorIn}; }
+    }
+    @keyframes glowOut {
+      0%   { box-shadow: 0 0 5px ${colorOut},  0 0 10px ${colorOut};  }
+      100% { box-shadow: 0 0 10px ${colorOut}, 0 0 20px ${colorOut}; }
     }
 
-    .glowing-border {
+    div[tabindex='0'][data-tab='8'] .message-in ._amk6,
+    div[tabindex='0'][data-tab='8'] .message-in ._amk4 {
       border: 2px solid transparent;
       border-radius: 8px;
-      animation: glowingBorder 2s infinite alternate;
+      animation: glowIn 2s infinite alternate;
+    }
+
+    div[tabindex='0'][data-tab='8'] .message-out ._amk6,
+    div[tabindex='0'][data-tab='8'] .message-out ._amk4 {
+      border: 2px solid transparent;
+      border-radius: 8px;
+      animation: glowOut 2s infinite alternate;
     }
   `;
 
-  // Inject or update style tag
   let style = document.getElementById("glowingBorderStyle");
   if (!style) {
     style = document.createElement("style");
     style.id = "glowingBorderStyle";
     document.head.appendChild(style);
   }
+  // Only rewrite the tag when the colors actually changed
   if (style.innerHTML !== styleContent) {
     style.innerHTML = styleContent;
-    console.log("Glowing colors updated:", colors);
   }
-
-  // Apply glow to chat message elements
-  const chats = main.querySelectorAll('div[tabindex="-1"][role="row"]');
-  chats.forEach((chat, chatIndex) => {
-    const messageContainer = chat.querySelector("div.message-in");
-    if (!messageContainer) return;
-
-    const submessages = messageContainer.querySelectorAll("._amk6, ._amk4");
-    submessages.forEach((submessage, subIndex) => {
-      if (!submessage.classList.contains("glowing-border")) {
-        submessage.classList.add("glowing-border");
-        console.log(`Applied glow to (Chat ${chatIndex}, Submessage ${subIndex})`);
-      }
-    });
-  });
 }
 
-// Observe DOM for new chat messages
-function observeChatDOM() {
-  const main = document.querySelector("div[tabindex='0'][data-tab='8']");
-  if (!main) return;
-
-  const observer = new MutationObserver(() => {
-    chrome.storage.local.get(["color"], (result) => {
-      applyGlowingEffect(result.color || "#ff00ff");
-    });
+// Read both color keys and apply. Centralising the read here ensures
+// that a change to either key always sees the up-to-date value of the other.
+function loadAndApply() {
+  chrome.storage.local.get(["colorIn", "colorOut"], (result) => {
+    applyGlowingEffect(
+      result.colorIn  || "#00aaff",
+      result.colorOut || "#00ff88"
+    );
   });
-
-  observer.observe(main, {
-    childList: true,
-    subtree: true
-  });
-
-  console.log("Chat DOM observer initialized");
 }
 
 // Initialize on load
 function initGlowingFeature() {
-  makeHeaderTransparent(); // Only apply if needed
+  makeHeaderTransparent();
 
-  // 1️⃣ Get initial color and apply
-  chrome.storage.local.get(["color"], (result) => {
-    applyGlowingEffect(result.color || "#ff00ff");
-  });
+  // 1️⃣ Apply saved colors immediately
+  loadAndApply();
 
-  // 2️⃣ Watch for color updates in storage
+  // 2️⃣ Re-apply whenever either color is changed from the popup
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === "local" && changes.color) {
-      const newColor = changes.color.newValue;
-      applyGlowingEffect(newColor);
+    if (areaName === "local" && (changes.colorIn || changes.colorOut)) {
+      loadAndApply();
     }
   });
-
-  // 3️⃣ Watch DOM for new chat messages
-  observeChatDOM();
 }
 
 // ✅ Run it!
