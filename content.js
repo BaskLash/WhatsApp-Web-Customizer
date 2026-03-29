@@ -15,7 +15,7 @@ function initBurgerMenu() {
     // Button erstellen
     const burgerButton = document.createElement("button");
     burgerButton.className = "custom-burger-menu";
-    burgerButton.title = "Navigation ein-/ausblenden";
+    burgerButton.title = "Show/hide navigation";
     burgerButton.innerHTML = `<span></span><span></span><span></span>`;
 
     // Styling hinzufügen
