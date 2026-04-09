@@ -116,6 +116,13 @@ document.getElementById("discoButton3").addEventListener("click", () => {
   });
 });
 
+// ── Light Font & Privacy Mode toggles ────────────────────────────────────────
+["lightFont", "privacyMode"].forEach((key) => {
+  const cb = document.getElementById(key);
+  chrome.storage.local.get([key], (r) => { cb.checked = !!r[key]; });
+  cb.addEventListener("change", () => chrome.storage.local.set({ [key]: cb.checked }));
+});
+
 document.getElementById("report-bug").addEventListener("click", () => {
   window.open("https://forms.gle/U7jteYT8hpM19pWZA", "_blank");
 });
