@@ -229,6 +229,200 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   }
 });
 
+// ── Light Font Mode ────────────────────────────────────────────────────────────
+// Overrides bold font-weight in the sidebar and chat header so the UI looks
+// lighter. Targets only named text nodes — not icons or avatars.
+function applyLightFont(enabled) {
+  let style = document.getElementById("wa-light-font-style");
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "wa-light-font-style";
+    document.head.appendChild(style);
+  }
+  style.innerHTML = enabled ? `
+    #pane-side span[title],
+    #pane-side span[dir="auto"],
+    #pane-side span[dir="ltr"],
+    #main header span[dir="auto"],
+    #main header span[dir="ltr"],
+    #main header h1 {
+      font-weight: 400 !important;
+    }
+  ` : "";
+}
+
+chrome.storage.local.get(["lightFont"], (result) => {
+  applyLightFont(!!result.lightFont);
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.lightFont !== undefined) {
+    applyLightFont(!!changes.lightFont.newValue);
+  }
+});
+
+// ── Privacy Mode ───────────────────────────────────────────────────────────────
+// Blurs message previews in the chat list so bystanders or screen-share
+// viewers cannot read conversations. Hovering a row reveals it temporarily.
+function applyPrivacyMode(enabled) {
+  let style = document.getElementById("wa-privacy-style");
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "wa-privacy-style";
+    document.head.appendChild(style);
+  }
+  style.innerHTML = enabled ? `
+    #pane-side [role="row"] > div {
+      filter: blur(6px);
+      transition: filter 0.15s ease;
+    }
+    #pane-side [role="row"]:hover > div {
+      filter: blur(0);
+    }
+  ` : "";
+}
+
+chrome.storage.local.get(["privacyMode"], (result) => {
+  applyPrivacyMode(!!result.privacyMode);
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.privacyMode !== undefined) {
+    applyPrivacyMode(!!changes.privacyMode.newValue);
+  }
+});
+
+// ── Custom Chat Pinning ────────────────────────────────────────────────────────
+// Extends WhatsApp's 3-pin limit with unlimited client-side custom pins.
+// A "Pin" button appears on hover over each chat row. Pinned chats receive
+// a visible 📌 marker. Storage key: "customPinnedChats" (string[]).
+(function initCustomPinning() {
+  const STORAGE_KEY = "customPinnedChats";
+  const BTN_CLASS   = "wa-cpin-btn";
+  const MARK_CLASS  = "wa-cpin-marker";
+
+  const style = document.createElement("style");
+  style.id = "wa-cpin-style";
+  style.innerHTML = `
+    #pane-side [role="row"] { position: relative; }
+    .${BTN_CLASS} {
+      position: absolute; bottom: 6px; right: 6px;
+      background: rgba(16,185,129,0.9); color: #fff;
+      border: none; border-radius: 4px;
+      padding: 2px 7px; font-size: 10px; font-family: sans-serif;
+      cursor: pointer; z-index: 20; opacity: 0;
+      transition: opacity 0.15s ease;
+      pointer-events: auto;
+    }
+    #pane-side [role="row"]:hover .${BTN_CLASS} { opacity: 1; }
+    .${MARK_CLASS} {
+      position: absolute; top: 6px; right: 6px;
+      font-size: 11px; z-index: 20; pointer-events: none;
+      filter: drop-shadow(0 0 2px rgba(0,0,0,0.6));
+    }
+  `;
+  document.head.appendChild(style);
+
+  function getPinned(cb) {
+    chrome.storage.local.get([STORAGE_KEY], (r) => cb(r[STORAGE_KEY] || []));
+  }
+  function savePinned(list) {
+    chrome.storage.local.set({ [STORAGE_KEY]: list });
+  }
+  function getChatName(row) {
+    const el = row.querySelector("span[title]") ||
+               row.querySelector("span[dir='auto']");
+    return el ? (el.title || el.textContent).trim() : null;
+  }
+
+  function applyPinMarkers() {
+    const rows = document.querySelectorAll('#pane-side [role="row"]');
+    if (!rows.length) return;
+
+    getPinned((pinned) => {
+      rows.forEach((row) => {
+        const name = getChatName(row);
+        if (!name) return;
+
+        const isPinned = pinned.includes(name);
+
+        // Pin marker (📌 icon)
+        let marker = row.querySelector(`.${MARK_CLASS}`);
+        if (isPinned && !marker) {
+          marker = document.createElement("span");
+          marker.className = MARK_CLASS;
+          marker.textContent = "📌";
+          row.appendChild(marker);
+        } else if (!isPinned && marker) {
+          marker.remove();
+        }
+
+        // Pin / Unpin button (shown on hover via CSS)
+        let btn = row.querySelector(`.${BTN_CLASS}`);
+        if (!btn) {
+          btn = document.createElement("button");
+          btn.className = BTN_CLASS;
+          row.appendChild(btn);
+
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const chatName = getChatName(row);
+            if (!chatName) return;
+            getPinned((current) => {
+              const updated = current.includes(chatName)
+                ? current.filter((n) => n !== chatName)
+                : [...current, chatName];
+              savePinned(updated);
+              applyPinMarkers();
+            });
+          });
+        }
+
+        btn.textContent = isPinned ? "Unpin" : "Pin";
+        btn.title = isPinned ? "Remove custom pin" : "Custom pin this chat";
+      });
+    });
+  }
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes[STORAGE_KEY]) applyPinMarkers();
+  });
+
+  let pollTimer = null;
+  function schedulePoll() {
+    clearTimeout(pollTimer);
+    pollTimer = setTimeout(applyPinMarkers, 300);
+  }
+
+  function observePaneSide() {
+    const paneSide = document.getElementById("pane-side");
+    if (!paneSide) return false;
+    new MutationObserver((mutations) => {
+      const isOwn = mutations.every((m) =>
+        [...m.addedNodes, ...m.removedNodes].every(
+          (n) => n.nodeType !== 1 ||
+            n.classList?.contains(BTN_CLASS) ||
+            n.classList?.contains(MARK_CLASS)
+        )
+      );
+      if (!isOwn) schedulePoll();
+    }).observe(paneSide, { childList: true, subtree: true });
+    return true;
+  }
+
+  if (!observePaneSide()) {
+    const waitForPane = setInterval(() => {
+      if (observePaneSide()) {
+        clearInterval(waitForPane);
+        applyPinMarkers();
+      }
+    }, 800);
+  } else {
+    applyPinMarkers();
+  }
+})();
+
 // Funktion, die die Schrift global setzt
 function applyFont(fontName) {
   let existingLink = document.getElementById("dynamicFontLink");
