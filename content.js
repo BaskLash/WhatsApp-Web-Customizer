@@ -229,6 +229,70 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   }
 });
 
+// ── Compact Chat List ─────────────────────────────────────────────────────────
+// Normalises vertical spacing in the chat list so that resizing the main
+// message pane (or changing page zoom) no longer introduces awkward gaps
+// between chat rows.  Enabled by default.
+function applyCompactChatList(enabled) {
+  let style = document.getElementById("wa-compact-chatlist-style");
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "wa-compact-chatlist-style";
+    document.head.appendChild(style);
+  }
+  style.innerHTML = enabled ? `
+    /* ── Compact Chat List ── */
+
+    /* Ensure the virtual-list rows inside #pane-side have no extra gaps */
+    #pane-side [role="grid"],
+    #pane-side [role="list"],
+    #pane-side > div > div > div {
+      row-gap: 0 !important;
+      gap: 0 !important;
+    }
+
+    /* Tighten individual chat rows */
+    #pane-side [role="row"] {
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
+    }
+
+    /* Normalise the inner cell that holds avatar + text + timestamp */
+    #pane-side [role="row"] > div,
+    #pane-side [role="gridcell"] > div,
+    #pane-side [role="listitem"] > div {
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+    }
+
+    /* Keep the clickable chat row container from adding its own spacing */
+    #pane-side [role="row"] [data-testid="cell-frame-container"] {
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
+    }
+
+    /* Prevent the list wrapper from stretching rows apart */
+    #pane-side [data-testid="chat-list"] {
+      row-gap: 0 !important;
+      gap: 0 !important;
+    }
+  ` : "";
+}
+
+// Compact chat list is ON by default (true when key is missing)
+chrome.storage.local.get(["compactChatList"], (result) => {
+  const enabled = result.compactChatList !== undefined ? !!result.compactChatList : true;
+  applyCompactChatList(enabled);
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.compactChatList !== undefined) {
+    applyCompactChatList(!!changes.compactChatList.newValue);
+  }
+});
+
 // ── Light Font Mode ────────────────────────────────────────────────────────────
 // Overrides bold font-weight in the sidebar and chat header so the UI looks
 // lighter. Targets only named text nodes — not icons or avatars.
