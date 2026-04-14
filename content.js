@@ -368,7 +368,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
   const style = document.createElement("style");
   style.id = "wa-cpin-style";
   style.innerHTML = `
-    #pane-side [role="row"] { position: relative; }
     .${BTN_CLASS} {
       position: absolute; bottom: 6px; right: 6px;
       background: rgba(16,185,129,0.9); color: #fff;
