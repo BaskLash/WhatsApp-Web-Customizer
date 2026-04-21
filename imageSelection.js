@@ -1,172 +1,137 @@
-// === KEEP POPUP ALIVE HACK ===
-let keepAliveInterval;
-
-function keepPopupAlive() {
-  if (keepAliveInterval) return; // schon aktiv
-  keepAliveInterval = setInterval(() => {
-    chrome.runtime.getPlatformInfo(() => {});
-  }, 2000); // alle 2 Sekunden eine "Ping" an die Extension Runtime
-}
-
-function stopKeepingPopupAlive() {
-  clearInterval(keepAliveInterval);
-  keepAliveInterval = null;
-}
+// imageSelection.js — theme-slot picker in the popup.
+// File uploads and URL imports have been moved to manage-images.html.
+// This script now only selects from the existing library (predefined +
+// user-added via the management page), respecting `disabledImages`.
 
 const imageCache = new Map();
-let imageData = null;
+let imageData = null; // parsed images.json
+let uploadedImages = []; // from chrome.storage.local
+let disabledImages = new Set(); // from chrome.storage.local
 let currentType = null;
 let selectedSrc = null;
-let uploadedImages = []; // Array to store uploaded image metadata {filename, dataUrl}
 
 // DOM Elements
 const modal = document.getElementById("image-modal");
 const modalGallery = document.getElementById("modal-gallery");
 const modalTitle = document.getElementById("modal-title");
-const uploadInput = document.getElementById("image-upload-input");
+const modalUploadBtn = document.getElementById("modal-upload");
 
-// 1. Preload & build gallery automatically
+// Label the button to reflect its new role.
+if (modalUploadBtn) modalUploadBtn.textContent = "Manage Images";
+
+const THEME_SLOTS = ["welcome", "sidenav", "chatview", "navside"];
+
+// Open the management page in a new tab.
+function openManagePage() {
+  const url = chrome.runtime.getURL("manage-images.html");
+  if (chrome.tabs && chrome.tabs.create) {
+    chrome.tabs.create({ url });
+  } else {
+    window.open(url, "_blank");
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-  keepPopupAlive(); // 👈 Popup am Leben halten
-  const previewIds = ["welcome", "sidenav", "chatview", "navside"];
+  // Load previews + library metadata
+  chrome.storage.local.get(
+    [...THEME_SLOTS, "uploadedImages", "disabledImages"],
+    (result) => {
+      // Preview thumbnails for each theme slot
+      THEME_SLOTS.forEach((id) => {
+        const previewImg = document.getElementById(`${id}-preview`);
+        if (!previewImg) return;
+        previewImg.src = result[id]
+          ? result[id].startsWith("data:")
+            ? result[id]
+            : chrome.runtime.getURL(result[id])
+          : "default.jpg";
+      });
 
-  // Load previews and uploaded images from storage
-  chrome.storage.local.get([...previewIds, "uploadedImages"], (result) => {
-    // Set preview images
-    previewIds.forEach((id) => {
-      const previewImg = document.getElementById(`${id}-preview`);
-      previewImg.src = result[id]
-        ? result[id].startsWith("data:")
-          ? result[id]
-          : chrome.runtime.getURL(result[id])
-        : "default.jpg";
+      uploadedImages = Array.isArray(result.uploadedImages)
+        ? result.uploadedImages
+        : [];
+      disabledImages = new Set(
+        Array.isArray(result.disabledImages) ? result.disabledImages : [],
+      );
+
+      fetch(chrome.runtime.getURL("images.json"))
+        .then((res) => res.json())
+        .then((data) => {
+          imageData = data;
+          renderGallery();
+        })
+        .catch((err) => console.error("Failed to load images.json:", err));
+    },
+  );
+
+  // "Manage Images" opens the dedicated page (no more popup file upload)
+  if (modalUploadBtn) {
+    modalUploadBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      openManagePage();
+      closeModal();
     });
-
-    // Load uploaded images
-    uploadedImages = result.uploadedImages || [];
-    console.log("✅ Loaded uploaded images:", uploadedImages.length);
-
-    // Preload image list + cache + render gallery
-    fetch(chrome.runtime.getURL("images.json"))
-      .then((res) => res.json())
-      .then((data) => {
-        imageData = data;
-        // Add uploaded images to imageData under "uploaded" category
-        if (uploadedImages.length > 0) {
-          imageData.uploaded = {
-            files: uploadedImages.map((img) => img.filename),
-          };
-        } else {
-          imageData.uploaded = { files: [] };
-        }
-
-        const allImages = getAllImages(imageData);
-
-        // Cache all predefined and uploaded images
-        allImages.forEach((src) => preloadImage(src));
-        uploadedImages.forEach((img) => preloadImage(img.dataUrl));
-        console.log(
-          `✅ Preloaded ${allImages.length + uploadedImages.length} images.`,
-        );
-
-        // Build modal gallery
-        renderGallery();
-      })
-      .catch((err) => console.error("❌ Failed to preload images:", err));
-  });
-
-  // Add event listener for upload button
-  document.getElementById("modal-upload").addEventListener("click", () => {
-    uploadInput.click();
-  });
-
-  // Handle file upload
-  uploadInput.addEventListener("change", (event) => {
-    const file = event.target.files[0];
-    if (file && file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target.result;
-        // Generate a unique filename mimicking images folder structure
-        const timestamp = Date.now();
-        const extension = file.type.split("/")[1] || "jpg";
-        const filename = `images/uploaded/uploaded_image_${timestamp}.${extension}`;
-
-        // Check if image already exists
-        if (!uploadedImages.some((img) => img.dataUrl === dataUrl)) {
-          const imageMeta = { filename, dataUrl };
-          uploadedImages.push(imageMeta);
-
-          // Update imageData
-          if (!imageData.uploaded) {
-            imageData.uploaded = { files: [] };
-          }
-          imageData.uploaded.files.push(filename);
-
-          // Save to storage
-          chrome.storage.local.set({ uploadedImages }, () => {
-            console.log("✅ Uploaded image saved:", filename);
-            preloadImage(dataUrl);
-
-            // Update preview and preselect
-            if (currentType) {
-              chrome.storage.local.set({ [currentType]: dataUrl }, () => {
-                document.getElementById(`${currentType}-preview`).src = dataUrl;
-              });
-              selectedSrc = dataUrl;
-            }
-
-            renderGallery(); // Re-render gallery to include new image
-            selectImageInGallery(dataUrl); // Auto-select the uploaded image
-          });
-        }
-        // Reset file input
-        uploadInput.value = "";
-      };
-      reader.onerror = () => {
-        console.error("❌ Failed to read uploaded image");
-        uploadInput.value = "";
-      };
-      reader.readAsDataURL(file);
-    } else {
-      console.warn("⚠️ Invalid file type. Please upload an image.");
-      uploadInput.value = "";
-    }
-  });
+  }
 });
 
-// 2. Helpers
-function getAllImages(data) {
+// Keep the popup in sync when the management page changes the library.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local") return;
+  let needsRender = false;
+  if (changes.uploadedImages) {
+    uploadedImages = Array.isArray(changes.uploadedImages.newValue)
+      ? changes.uploadedImages.newValue
+      : [];
+    needsRender = true;
+  }
+  if (changes.disabledImages) {
+    disabledImages = new Set(
+      Array.isArray(changes.disabledImages.newValue)
+        ? changes.disabledImages.newValue
+        : [],
+    );
+    needsRender = true;
+  }
+  // If a theme slot was cleared (because its image was deleted), refresh preview
+  THEME_SLOTS.forEach((slot) => {
+    if (changes[slot]) {
+      const previewImg = document.getElementById(`${slot}-preview`);
+      if (!previewImg) return;
+      const v = changes[slot].newValue;
+      previewImg.src = v
+        ? v.startsWith("data:")
+          ? v
+          : chrome.runtime.getURL(v)
+        : "default.jpg";
+    }
+  });
+  if (needsRender && modal.style.display === "flex") renderGallery();
+});
+
+// ── Library helpers ─────────────────────────────────────────────────────────
+
+function getAllImages() {
   const set = new Set();
-  for (const cat in data) {
-    const files = data[cat].files;
-    if (Array.isArray(files)) {
-      files.forEach((src) => {
-        // For uploaded images, use dataUrl; for others, use src
-        const imgSrc =
-          cat === "uploaded"
-            ? uploadedImages.find((img) => img.filename === src)?.dataUrl || src
-            : src;
-        set.add(imgSrc);
-      });
+  if (imageData) {
+    for (const cat in imageData) {
+      if (cat === "uploaded") continue; // legacy key — ignore
+      const files = imageData[cat]?.files;
+      if (Array.isArray(files)) files.forEach((src) => set.add(src));
     }
   }
-  return [...set];
+  uploadedImages.forEach((img) => set.add(img.dataUrl));
+  // Filter out logically-disabled entries
+  return [...set].filter((src) => !disabledImages.has(src));
 }
 
 function preloadImage(src) {
-  if (!imageCache.has(src)) {
-    const img = new Image();
-    img.src = src.startsWith("data:") ? src : chrome.runtime.getURL(src);
-    img.loading = "lazy";
-    img.onerror = () => console.warn(`⚠️ Failed to preload: ${src}`);
-    imageCache.set(src, img);
-  }
-}
-
-function getCachedImage(src) {
-  if (!imageCache.has(src)) preloadImage(src);
-  return imageCache.get(src);
+  if (imageCache.has(src)) return imageCache.get(src);
+  const img = new Image();
+  img.src = src.startsWith("data:") ? src : chrome.runtime.getURL(src);
+  img.loading = "lazy";
+  img.onerror = () => console.warn(`Failed to preload: ${src}`);
+  imageCache.set(src, img);
+  return img;
 }
 
 function selectImageInGallery(src) {
@@ -177,18 +142,15 @@ function selectImageInGallery(src) {
   if (option) {
     option.classList.add("selected");
     selectedSrc = src;
-    // modalGallery.scrollTo({
-    //  top: option.offsetTop - modalGallery.offsetTop,
-    //  behavior: "smooth",
-    // });
   }
 }
 
-// 3. Build the gallery
+// ── Gallery rendering ───────────────────────────────────────────────────────
+
 function renderGallery() {
   if (!imageData) return;
-  modalGallery.innerHTML = ""; // Clear existing gallery
-  const images = getAllImages(imageData);
+  modalGallery.innerHTML = "";
+  const images = getAllImages();
   const BATCH_SIZE = 20;
   let index = 0;
 
@@ -202,24 +164,10 @@ function renderGallery() {
       option.className = "image-option";
       option.dataset.src = src;
 
-      const img = getCachedImage(src).cloneNode();
+      const img = preloadImage(src).cloneNode();
       img.alt = "";
       img.loading = "lazy";
       option.appendChild(img);
-
-      // 🔴 Lösch-Button nur für hochgeladene Bilder
-      const isUploaded = uploadedImages.some((img) => img.dataUrl === src);
-      if (isUploaded) {
-        const delBtn = document.createElement("button");
-        delBtn.className = "delete-btn";
-        delBtn.textContent = "✕";
-        delBtn.title = "Delete image";
-        delBtn.addEventListener("click", (e) => {
-          e.stopPropagation(); // verhindert, dass das Bild ausgewählt wird
-          deleteUploadedImage(src);
-        });
-        option.appendChild(delBtn);
-      }
 
       option.addEventListener("click", () => {
         modalGallery
@@ -228,15 +176,13 @@ function renderGallery() {
         option.classList.add("selected");
         selectedSrc = src;
 
-        // 🆕 Preview sofort aktualisieren
         if (currentType) {
           const previewImg = document.getElementById(`${currentType}-preview`);
-          previewImg.src = src.startsWith("data:")
-            ? src
-            : chrome.runtime.getURL(src);
-
-          // 🆕 Direkt speichern (optional)
-          // chrome.storage.local.set({ [currentType]: src });
+          if (previewImg) {
+            previewImg.src = src.startsWith("data:")
+              ? src
+              : chrome.runtime.getURL(src);
+          }
         }
       });
 
@@ -248,57 +194,22 @@ function renderGallery() {
 
     if (index < images.length) {
       requestIdleCallback(renderBatch, { timeout: 100 });
+    } else if (selectedSrc) {
+      selectImageInGallery(selectedSrc);
     }
   }
 
   renderBatch();
 }
 
-function deleteUploadedImage(src) {
-  const index = uploadedImages.findIndex((img) => img.dataUrl === src);
-  if (index === -1) return;
+// ── Modal logic ─────────────────────────────────────────────────────────────
 
-  const removed = uploadedImages.splice(index, 1)[0];
-  console.log("🗑️ Image deleted:", removed.filename);
-
-  // Aus imageData.uploaded entfernen
-  if (imageData?.uploaded?.files) {
-    imageData.uploaded.files = imageData.uploaded.files.filter(
-      (file) => file !== removed.filename,
-    );
-  }
-
-  // Speicher aktualisieren
-  chrome.storage.local.set({ uploadedImages }, () => {
-    // Wenn das gelöschte Bild aktiv ist → Preview zurücksetzen
-    const previewIds = ["welcome", "sidenav", "chatview", "navside"];
-    chrome.storage.local.get(previewIds, (result) => {
-      previewIds.forEach((type) => {
-        if (result[type] === src) {
-          chrome.storage.local.remove(type);
-          document.getElementById(`${type}-preview`).src = "default.jpg";
-        }
-      });
-    });
-
-    // Galerie neu rendern
-    renderGallery();
-
-    // ✅ Bestätigung anzeigen
-    alert(`✅ The image “${removed.filename}” has been successfully deleted.`);
-  });
-}
-
-// 4. Modal logic
 function openModal(type) {
   currentType = type;
   modalTitle.textContent = `Image selection for ${type}`;
   modal.style.display = "flex";
-
-  // Reset scroll position to top
   modalGallery.scrollTo({ top: 0, behavior: "smooth" });
 
-  // Highlight the current image if set
   chrome.storage.local.get([type], (result) => {
     if (result[type]) selectImageInGallery(result[type]);
   });
@@ -310,14 +221,15 @@ function closeModal() {
   selectedSrc = null;
 }
 
-// 5. Buttons
 document.getElementById("modal-save").addEventListener("click", () => {
   if (currentType && selectedSrc) {
     chrome.storage.local.set({ [currentType]: selectedSrc }, () => {
       const previewImg = document.getElementById(`${currentType}-preview`);
-      previewImg.src = selectedSrc.startsWith("data:")
-        ? selectedSrc
-        : chrome.runtime.getURL(selectedSrc);
+      if (previewImg) {
+        previewImg.src = selectedSrc.startsWith("data:")
+          ? selectedSrc
+          : chrome.runtime.getURL(selectedSrc);
+      }
     });
   }
   closeModal();
@@ -326,19 +238,15 @@ document.getElementById("modal-save").addEventListener("click", () => {
 document.getElementById("modal-none").addEventListener("click", () => {
   if (currentType) {
     chrome.storage.local.remove(currentType);
-    document.getElementById(`${currentType}-preview`).src = "default.jpg";
+    const previewImg = document.getElementById(`${currentType}-preview`);
+    if (previewImg) previewImg.src = "default.jpg";
   }
   closeModal();
 });
 
 document.getElementById("modal-cancel").addEventListener("click", closeModal);
 
-// 6. Trigger modal
 document.addEventListener("click", (e) => {
   const option = e.target.closest(".image-option[data-type]");
   if (option) openModal(option.dataset.type);
-});
-
-window.addEventListener("unload", () => {
-  stopKeepingPopupAlive();
 });
