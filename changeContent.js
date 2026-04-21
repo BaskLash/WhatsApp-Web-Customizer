@@ -1,7 +1,10 @@
-// Accept only remote URLs and data: URLs. Legacy `images/...` paths
-// (from bundled assets that no longer exist) are rejected.
+// Accept only `data:` URLs. WhatsApp Web's CSP blocks external image
+// origins in `background-image: url(...)`, so cross-origin URLs would
+// silently fail to render. The popup converts every selection to a data
+// URL before storing — this guard rejects anything that still slipped
+// through (e.g. slot values from pre-fix installs).
 function isUsableSrc(src) {
-  return typeof src === "string" && /^(https?:|data:)/.test(src);
+  return typeof src === "string" && src.startsWith("data:");
 }
 
 function customThemes() {
@@ -16,9 +19,9 @@ function customThemes() {
 
     if (headerEl) {
       chrome.storage.local.get(["navside"], (result) => {
-        // Stored values are either a remote URL (predefined / user-added via URL)
-        // or a data: URL (user-uploaded). Legacy `images/...` paths are treated
-        // as missing, since bundled assets were removed.
+        // Theme slots must always hold a `data:` URL by the time we read
+        // them (the popup converts remote URLs on save). Anything else is
+        // dropped so WhatsApp Web's CSP can't block the background load.
         const navsideImage = isUsableSrc(result.navside) ? result.navside : null;
 
         if (navsideImage) {

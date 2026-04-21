@@ -22,6 +22,7 @@ let disabledImages = new Set(); // src strings flagged as hidden
 let currentType = null;
 let selectedSrc = null;
 let renderToken = 0; // guard against overlapping batched renders
+const urlToDataUrlCache = new Map(); // remote URL → data URL, for the lifetime of the popup
 
 // DOM
 const modal = document.getElementById("image-modal");
@@ -63,6 +64,44 @@ function openManagePage() {
   }
 }
 
+// Fetches a remote image and converts it to a data URL using the same pipeline
+// as local uploads. Needed because WhatsApp Web's CSP blocks external image
+// origins in `background-image: url(...)`, so the theme slot must always hold
+// a data URL by the time the content script reads it.
+function fetchAsDataUrl(url) {
+  if (urlToDataUrlCache.has(url)) return Promise.resolve(urlToDataUrlCache.get(url));
+  return fetch(url, { mode: "cors" })
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.blob();
+    })
+    .then((blob) => {
+      if (!blob.type || !blob.type.startsWith("image/")) {
+        throw new Error("The URL did not return an image.");
+      }
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error("Read failed."));
+        reader.readAsDataURL(blob);
+      });
+    })
+    .then((dataUrl) => {
+      urlToDataUrlCache.set(url, dataUrl);
+      return dataUrl;
+    });
+}
+
+// Unified conversion funnel: every save goes through here so the theme slot
+// ends up with a `data:` URL regardless of whether the source was an upload,
+// a URL-imported image (already a data URL), or a predefined remote URL.
+async function ensureDataUrl(src) {
+  if (typeof src !== "string" || !src) return null;
+  if (src.startsWith("data:")) return src;
+  if (/^https?:/.test(src)) return await fetchAsDataUrl(src);
+  return null;
+}
+
 // ── Bootstrap ───────────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -84,6 +123,11 @@ document.addEventListener("DOMContentLoaded", () => {
           renderGallery();
         })
         .catch((err) => console.error("Failed to load images.json:", err));
+
+      // Self-heal slots left over from pre-CSP-fix installs: they contain a
+      // raw HTTPS URL that WhatsApp Web's CSP blocks. Convert to data URLs
+      // in the background so the selection actually renders next time.
+      migrateLegacySlots(result);
     },
   );
 
@@ -95,6 +139,23 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+async function migrateLegacySlots(initialValues) {
+  const migrations = {};
+  for (const slot of THEME_SLOTS) {
+    const v = initialValues[slot];
+    if (typeof v === "string" && /^https?:/.test(v)) {
+      try {
+        migrations[slot] = await fetchAsDataUrl(v);
+      } catch (err) {
+        console.warn(`Legacy ${slot} slot could not be converted:`, err);
+      }
+    }
+  }
+  if (Object.keys(migrations).length > 0) {
+    chrome.storage.local.set(migrations);
+  }
+}
 
 function extractPredefinedSrcs(data) {
   const out = [];
@@ -317,13 +378,44 @@ function closeModal() {
   selectedSrc = null;
 }
 
-document.getElementById("modal-save").addEventListener("click", () => {
-  if (currentType && selectedSrc) {
-    chrome.storage.local.set({ [currentType]: selectedSrc }, () =>
-      setPreview(currentType, selectedSrc),
-    );
+const modalSaveBtn = document.getElementById("modal-save");
+modalSaveBtn.addEventListener("click", async () => {
+  if (!currentType || !selectedSrc) {
+    closeModal();
+    return;
   }
-  closeModal();
+
+  const slot = currentType;
+  const src = selectedSrc;
+
+  const originalLabel = modalSaveBtn.textContent;
+  modalSaveBtn.disabled = true;
+  modalSaveBtn.textContent = "Saving…";
+
+  try {
+    const dataUrl = await ensureDataUrl(src);
+    if (!dataUrl) {
+      alert(
+        "Couldn't prepare that image. It may have blocked cross-origin access — try uploading it from your device via Manage Images.",
+      );
+      return;
+    }
+    await new Promise((resolve) =>
+      chrome.storage.local.set({ [slot]: dataUrl }, resolve),
+    );
+    setPreview(slot, dataUrl);
+    closeModal();
+  } catch (err) {
+    console.error("Failed to save image:", err);
+    alert(
+      "Couldn't save that image: " +
+        (err && err.message ? err.message : "fetch failed.") +
+        "\nTip: download the image and add it via Manage Images instead.",
+    );
+  } finally {
+    modalSaveBtn.disabled = false;
+    modalSaveBtn.textContent = originalLabel;
+  }
 });
 
 document.getElementById("modal-none").addEventListener("click", () => {
