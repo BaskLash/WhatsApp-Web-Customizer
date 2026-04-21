@@ -1,11 +1,12 @@
 // manage-images.js — dedicated image/theme management page.
-// Reuses the existing storage schema from imageSelection.js:
+// Storage schema (reused across popup + management page):
 //   - `uploadedImages`: [{ filename, dataUrl, source?, originalUrl? }]
-//     `source` is "upload" (default, backwards compatible) or "url".
-//   - `disabledImages`: [src]  — logical-deletion flag for predefined
-//     images (we never remove bundled assets from disk).
-// Theme slots (welcome, sidenav, chatview, navside) are untouched and
-// still hold either an `images/...` path or a `data:` URL.
+//     `source` is "upload" (default) or "url" for URL-imported images.
+//   - `disabledImages`: [src] — logical-deletion flag for predefined
+//     images. Predefined images are remote URLs listed in images.json,
+//     so there is nothing to remove from disk — we just hide them.
+// Theme slots (welcome, sidenav, chatview, navside) hold either a
+// remote URL (predefined / URL-imported) or a data: URL (upload).
 
 const ACCEPTED_MIME = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8 MB per image
@@ -28,11 +29,6 @@ let disabledImages = new Set(); // src strings flagged as hidden
 let currentFilter = "all";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-function getImageURL(src) {
-  if (!src) return "";
-  return src.startsWith("images/") ? chrome.runtime.getURL(src) : src;
-}
 
 function setStatus(node, message, kind = "info") {
   node.textContent = message;
@@ -189,8 +185,9 @@ function renderCard(entry) {
 
   const img = document.createElement("img");
   img.loading = "lazy";
+  img.decoding = "async";
   img.alt = "";
-  img.src = getImageURL(entry.src);
+  img.src = entry.src;
   card.appendChild(img);
 
   if (entry.kind !== "predefined") {
@@ -256,9 +253,10 @@ async function addUploadedFromDataUrl(dataUrl, { mime, suggestedName, source, or
   }
   const timestamp = Date.now() + Math.floor(Math.random() * 1000);
   const ext = extFromMime(mime);
-  const folder = source === "url" ? "url" : "uploaded";
-  const filename =
-    suggestedName || `images/${folder}/${source || "uploaded"}_${timestamp}.${ext}`;
+  const prefix = source === "url" ? "url" : "upload";
+  // `filename` is a human-readable label only — it is never resolved as a
+  // path. Kept for backwards compatibility with the existing schema.
+  const filename = suggestedName || `${prefix}/${prefix}_${timestamp}.${ext}`;
   const entry = { filename, dataUrl };
   if (source) entry.source = source;
   if (originalUrl) entry.originalUrl = originalUrl;

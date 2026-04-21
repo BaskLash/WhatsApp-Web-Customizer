@@ -1,3 +1,9 @@
+// Accept only remote URLs and data: URLs. Legacy `images/...` paths
+// (from bundled assets that no longer exist) are rejected.
+function isUsableSrc(src) {
+  return typeof src === "string" && /^(https?:|data:)/.test(src);
+}
+
 function customThemes() {
   console.log("Starting custom themes...");
 
@@ -10,12 +16,10 @@ function customThemes() {
 
     if (headerEl) {
       chrome.storage.local.get(["navside"], (result) => {
-        // Falls lokale Datei in Extension, nutze chrome.runtime.getURL
-        const getImageURL = (src) =>
-          src && src.startsWith("images/") ? chrome.runtime.getURL(src) : src;
-
-        // result.navside ist der gespeicherte Bildpfad/URL
-        const navsideImage = getImageURL(result.navside);
+        // Stored values are either a remote URL (predefined / user-added via URL)
+        // or a data: URL (user-uploaded). Legacy `images/...` paths are treated
+        // as missing, since bundled assets were removed.
+        const navsideImage = isUsableSrc(result.navside) ? result.navside : null;
 
         if (navsideImage) {
           headerEl.style.backgroundImage = `url('${navsideImage}')`;
@@ -66,13 +70,9 @@ function customThemes() {
 `;
       // Lade gespeicherte Bilder
       chrome.storage.local.get(["welcome", "chatview", "sidenav"], (result) => {
-        // Falls lokale Datei in Extension, nutze chrome.runtime.getURL
-        const getImageURL = (src) =>
-          src && src.startsWith("images/") ? chrome.runtime.getURL(src) : src;
-
-        const welcomeImage = getImageURL(result.welcome);
-        const chatviewImage = getImageURL(result.chatview);
-        const sidenavImage = getImageURL(result.sidenav);
+        const welcomeImage = isUsableSrc(result.welcome) ? result.welcome : null;
+        const chatviewImage = isUsableSrc(result.chatview) ? result.chatview : null;
+        const sidenavImage = isUsableSrc(result.sidenav) ? result.sidenav : null;
 
         // PaneSide / Sidenav
         if (paneSide && sidenavImage) {

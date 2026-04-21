@@ -30,11 +30,5 @@
       "run_at": "document_idle"
     }
   ],
-  "host_permissions": ["https://web.whatsapp.com/"],
-  "web_accessible_resources": [
-    {
-      "resources": ["images/*", "images/*/*", "images/*/*/*"],
-      "matches": ["https://web.whatsapp.com/*"]
-    }
-  ]
+  "host_permissions": ["https://web.whatsapp.com/"]
 }

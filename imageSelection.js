@@ -1,27 +1,59 @@
 // imageSelection.js — theme-slot picker in the popup.
-// File uploads and URL imports have been moved to manage-images.html.
-// This script now only selects from the existing library (predefined +
-// user-added via the management page), respecting `disabledImages`.
+//
+// Storage schema (shared with manage-images.js):
+//   - `uploadedImages`: [{ filename, dataUrl, source?, originalUrl? }]
+//     `source` is "upload" (default) or "url" for URL-imported images.
+//   - `disabledImages`: [src] — logical-deletion flag for predefined
+//     remote-URL images listed in images.json.
+//   - Theme slots (welcome, sidenav, chatview, navside) store either a
+//     remote URL or a data: URL — both are usable directly as <img> src
+//     and as CSS background-image.
+//
+// All images (bundled assets have been removed) are remote URLs or data:
+// URLs, so no path translation is needed anywhere.
 
-const imageCache = new Map();
-let imageData = null; // parsed images.json
-let uploadedImages = []; // from chrome.storage.local
-let disabledImages = new Set(); // from chrome.storage.local
+const PLACEHOLDER_SRC =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect fill='%23242530' width='16' height='9'/%3E%3C/svg%3E";
+const THEME_SLOTS = ["welcome", "sidenav", "chatview", "navside"];
+
+let predefinedSrcs = []; // from images.json (flat list of URLs)
+let uploadedImages = []; // [{ filename, dataUrl, source?, originalUrl? }]
+let disabledImages = new Set(); // src strings flagged as hidden
 let currentType = null;
 let selectedSrc = null;
+let renderToken = 0; // guard against overlapping batched renders
 
-// DOM Elements
+// DOM
 const modal = document.getElementById("image-modal");
 const modalGallery = document.getElementById("modal-gallery");
 const modalTitle = document.getElementById("modal-title");
 const modalUploadBtn = document.getElementById("modal-upload");
 
-// Label the button to reflect its new role.
 if (modalUploadBtn) modalUploadBtn.textContent = "Manage Images";
 
-const THEME_SLOTS = ["welcome", "sidenav", "chatview", "navside"];
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
-// Open the management page in a new tab.
+function isUsableSrc(src) {
+  return typeof src === "string" && /^(https?:|data:)/.test(src);
+}
+
+function previewFor(src) {
+  return isUsableSrc(src) ? src : PLACEHOLDER_SRC;
+}
+
+function isUserImage(src) {
+  return uploadedImages.some((i) => i.dataUrl === src);
+}
+
+function isPredefinedImage(src) {
+  return predefinedSrcs.includes(src);
+}
+
+function setPreview(slot, src) {
+  const el = document.getElementById(`${slot}-preview`);
+  if (el) el.src = previewFor(src);
+}
+
 function openManagePage() {
   const url = chrome.runtime.getURL("manage-images.html");
   if (chrome.tabs && chrome.tabs.create) {
@@ -31,22 +63,13 @@ function openManagePage() {
   }
 }
 
+// ── Bootstrap ───────────────────────────────────────────────────────────────
+
 document.addEventListener("DOMContentLoaded", () => {
-  // Load previews + library metadata
   chrome.storage.local.get(
     [...THEME_SLOTS, "uploadedImages", "disabledImages"],
     (result) => {
-      // Preview thumbnails for each theme slot
-      THEME_SLOTS.forEach((id) => {
-        const previewImg = document.getElementById(`${id}-preview`);
-        if (!previewImg) return;
-        previewImg.src = result[id]
-          ? result[id].startsWith("data:")
-            ? result[id]
-            : chrome.runtime.getURL(result[id])
-          : "default.jpg";
-      });
-
+      THEME_SLOTS.forEach((slot) => setPreview(slot, result[slot]));
       uploadedImages = Array.isArray(result.uploadedImages)
         ? result.uploadedImages
         : [];
@@ -57,14 +80,13 @@ document.addEventListener("DOMContentLoaded", () => {
       fetch(chrome.runtime.getURL("images.json"))
         .then((res) => res.json())
         .then((data) => {
-          imageData = data;
+          predefinedSrcs = extractPredefinedSrcs(data);
           renderGallery();
         })
         .catch((err) => console.error("Failed to load images.json:", err));
     },
   );
 
-  // "Manage Images" opens the dedicated page (no more popup file upload)
   if (modalUploadBtn) {
     modalUploadBtn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -74,15 +96,31 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// Keep the popup in sync when the management page changes the library.
+function extractPredefinedSrcs(data) {
+  const out = [];
+  if (!data) return out;
+  for (const key of Object.keys(data)) {
+    // `uploaded` was a legacy side-channel — ignore if it ever appears.
+    if (key === "uploaded") continue;
+    const files = data[key]?.files;
+    if (!Array.isArray(files)) continue;
+    for (const src of files) if (isUsableSrc(src)) out.push(src);
+  }
+  return out;
+}
+
+// ── Live sync with the management page ─────────────────────────────────────
+
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
-  let needsRender = false;
+
+  let libraryChanged = false;
+
   if (changes.uploadedImages) {
     uploadedImages = Array.isArray(changes.uploadedImages.newValue)
       ? changes.uploadedImages.newValue
       : [];
-    needsRender = true;
+    libraryChanged = true;
   }
   if (changes.disabledImages) {
     disabledImages = new Set(
@@ -90,116 +128,173 @@ chrome.storage.onChanged.addListener((changes, area) => {
         ? changes.disabledImages.newValue
         : [],
     );
-    needsRender = true;
+    libraryChanged = true;
   }
-  // If a theme slot was cleared (because its image was deleted), refresh preview
-  THEME_SLOTS.forEach((slot) => {
-    if (changes[slot]) {
-      const previewImg = document.getElementById(`${slot}-preview`);
-      if (!previewImg) return;
-      const v = changes[slot].newValue;
-      previewImg.src = v
-        ? v.startsWith("data:")
-          ? v
-          : chrome.runtime.getURL(v)
-        : "default.jpg";
-    }
-  });
-  if (needsRender && modal.style.display === "flex") renderGallery();
+
+  for (const slot of THEME_SLOTS) {
+    if (changes[slot]) setPreview(slot, changes[slot].newValue);
+  }
+
+  if (libraryChanged && modal.style.display === "flex") renderGallery();
 });
 
-// ── Library helpers ─────────────────────────────────────────────────────────
+// ── Library view (predefined + user, minus disabled) ────────────────────────
 
-function getAllImages() {
-  const set = new Set();
-  if (imageData) {
-    for (const cat in imageData) {
-      if (cat === "uploaded") continue; // legacy key — ignore
-      const files = imageData[cat]?.files;
-      if (Array.isArray(files)) files.forEach((src) => set.add(src));
-    }
+function visibleSrcs() {
+  const seen = new Set();
+  const out = [];
+  for (const src of predefinedSrcs) {
+    if (disabledImages.has(src) || seen.has(src)) continue;
+    seen.add(src);
+    out.push(src);
   }
-  uploadedImages.forEach((img) => set.add(img.dataUrl));
-  // Filter out logically-disabled entries
-  return [...set].filter((src) => !disabledImages.has(src));
-}
-
-function preloadImage(src) {
-  if (imageCache.has(src)) return imageCache.get(src);
-  const img = new Image();
-  img.src = src.startsWith("data:") ? src : chrome.runtime.getURL(src);
-  img.loading = "lazy";
-  img.onerror = () => console.warn(`Failed to preload: ${src}`);
-  imageCache.set(src, img);
-  return img;
-}
-
-function selectImageInGallery(src) {
-  modalGallery
-    .querySelectorAll(".image-option")
-    .forEach((el) => el.classList.remove("selected"));
-  const option = modalGallery.querySelector(`.image-option[data-src="${src}"]`);
-  if (option) {
-    option.classList.add("selected");
-    selectedSrc = src;
+  for (const img of uploadedImages) {
+    const src = img.dataUrl;
+    if (!isUsableSrc(src) || disabledImages.has(src) || seen.has(src)) continue;
+    seen.add(src);
+    out.push(src);
   }
+  return out;
 }
 
 // ── Gallery rendering ───────────────────────────────────────────────────────
 
 function renderGallery() {
-  if (!imageData) return;
+  const token = ++renderToken;
   modalGallery.innerHTML = "";
-  const images = getAllImages();
-  const BATCH_SIZE = 20;
+  const images = visibleSrcs();
+
+  if (images.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "gallery-empty-hint";
+    empty.style.cssText =
+      "padding:20px;color:#a0a0a0;font-size:13px;text-align:center;width:100%";
+    empty.textContent =
+      "No images available. Use “Manage Images” to add some.";
+    modalGallery.appendChild(empty);
+    return;
+  }
+
+  const BATCH_SIZE = 12;
   let index = 0;
 
-  function renderBatch() {
+  const renderBatch = () => {
+    if (token !== renderToken) return; // superseded by another render
     const fragment = document.createDocumentFragment();
     const end = Math.min(index + BATCH_SIZE, images.length);
 
     for (let i = index; i < end; i++) {
-      const src = images[i];
-      const option = document.createElement("div");
-      option.className = "image-option";
-      option.dataset.src = src;
-
-      const img = preloadImage(src).cloneNode();
-      img.alt = "";
-      img.loading = "lazy";
-      option.appendChild(img);
-
-      option.addEventListener("click", () => {
-        modalGallery
-          .querySelectorAll(".image-option")
-          .forEach((el) => el.classList.remove("selected"));
-        option.classList.add("selected");
-        selectedSrc = src;
-
-        if (currentType) {
-          const previewImg = document.getElementById(`${currentType}-preview`);
-          if (previewImg) {
-            previewImg.src = src.startsWith("data:")
-              ? src
-              : chrome.runtime.getURL(src);
-          }
-        }
-      });
-
-      fragment.appendChild(option);
+      fragment.appendChild(createOption(images[i]));
     }
 
     modalGallery.appendChild(fragment);
     index = end;
 
     if (index < images.length) {
-      requestIdleCallback(renderBatch, { timeout: 100 });
+      (window.requestIdleCallback || window.requestAnimationFrame)(renderBatch, {
+        timeout: 100,
+      });
     } else if (selectedSrc) {
       selectImageInGallery(selectedSrc);
     }
-  }
+  };
 
   renderBatch();
+}
+
+function createOption(src) {
+  const option = document.createElement("div");
+  option.className = "image-option";
+  option.dataset.src = src;
+
+  const img = document.createElement("img");
+  img.alt = "";
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.src = src;
+  option.appendChild(img);
+
+  // Per-image delete button:
+  //   - predefined → logical disable (adds to disabledImages)
+  //   - upload / url → hard delete from uploadedImages
+  const delBtn = document.createElement("button");
+  delBtn.className = "delete-btn";
+  delBtn.textContent = "✕";
+  delBtn.title = isPredefinedImage(src)
+    ? "Hide this image"
+    : "Delete this image";
+  delBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    deleteImage(src);
+  });
+  option.appendChild(delBtn);
+
+  option.addEventListener("click", () => {
+    modalGallery
+      .querySelectorAll(".image-option.selected")
+      .forEach((el) => el.classList.remove("selected"));
+    option.classList.add("selected");
+    selectedSrc = src;
+
+    if (currentType) setPreview(currentType, src);
+  });
+
+  return option;
+}
+
+function selectImageInGallery(src) {
+  modalGallery
+    .querySelectorAll(".image-option.selected")
+    .forEach((el) => el.classList.remove("selected"));
+  const option = modalGallery.querySelector(
+    `.image-option[data-src="${cssEscape(src)}"]`,
+  );
+  if (option) {
+    option.classList.add("selected");
+    selectedSrc = src;
+  }
+}
+
+// CSS.escape isn't needed for https URLs but data: URLs contain characters
+// (`:`, `,`, `/`, `+`, `=`) that the selector engine handles fine inside an
+// attribute selector — except when the value also contains `"`. The data URL
+// we produce never does, but escape defensively.
+function cssEscape(value) {
+  return window.CSS && CSS.escape ? CSS.escape(value) : value.replace(/"/g, '\\"');
+}
+
+// ── Deletion ────────────────────────────────────────────────────────────────
+
+function deleteImage(src) {
+  if (isUserImage(src)) {
+    uploadedImages = uploadedImages.filter((i) => i.dataUrl !== src);
+    chrome.storage.local.set({ uploadedImages }, () => clearSlotsUsing(src));
+    // A user image might also have been individually disabled — clean up.
+    if (disabledImages.delete(src)) {
+      chrome.storage.local.set({ disabledImages: [...disabledImages] });
+    }
+  } else if (isPredefinedImage(src)) {
+    disabledImages.add(src);
+    chrome.storage.local.set(
+      { disabledImages: [...disabledImages] },
+      () => clearSlotsUsing(src),
+    );
+  } else {
+    return;
+  }
+
+  if (selectedSrc === src) selectedSrc = null;
+  renderGallery();
+}
+
+function clearSlotsUsing(src) {
+  chrome.storage.local.get(THEME_SLOTS, (result) => {
+    const toRemove = THEME_SLOTS.filter((slot) => result[slot] === src);
+    if (toRemove.length === 0) return;
+    chrome.storage.local.remove(toRemove, () => {
+      toRemove.forEach((slot) => setPreview(slot, null));
+    });
+  });
 }
 
 // ── Modal logic ─────────────────────────────────────────────────────────────
@@ -208,7 +303,7 @@ function openModal(type) {
   currentType = type;
   modalTitle.textContent = `Image selection for ${type}`;
   modal.style.display = "flex";
-  modalGallery.scrollTo({ top: 0, behavior: "smooth" });
+  modalGallery.scrollTo({ top: 0 });
 
   chrome.storage.local.get([type], (result) => {
     if (result[type]) selectImageInGallery(result[type]);
@@ -223,14 +318,9 @@ function closeModal() {
 
 document.getElementById("modal-save").addEventListener("click", () => {
   if (currentType && selectedSrc) {
-    chrome.storage.local.set({ [currentType]: selectedSrc }, () => {
-      const previewImg = document.getElementById(`${currentType}-preview`);
-      if (previewImg) {
-        previewImg.src = selectedSrc.startsWith("data:")
-          ? selectedSrc
-          : chrome.runtime.getURL(selectedSrc);
-      }
-    });
+    chrome.storage.local.set({ [currentType]: selectedSrc }, () =>
+      setPreview(currentType, selectedSrc),
+    );
   }
   closeModal();
 });
@@ -238,8 +328,7 @@ document.getElementById("modal-save").addEventListener("click", () => {
 document.getElementById("modal-none").addEventListener("click", () => {
   if (currentType) {
     chrome.storage.local.remove(currentType);
-    const previewImg = document.getElementById(`${currentType}-preview`);
-    if (previewImg) previewImg.src = "default.jpg";
+    setPreview(currentType, null);
   }
   closeModal();
 });

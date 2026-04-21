@@ -4,7 +4,6 @@
   "description": "Man sieht beim schreiben immer nur alle Chats und wenn man natürlich sehr viel mehr Text schreibt dann stöhrt diese Seitennavigation erheblich. Das Braucht es so nicht und lässt die Webseite mit den Chats auch etwas mehr ergonomischer und flexibler anfühlen oder anbeträchtlichen was natürlich besser ist für die User Experience als auch für die Übersicht und die Nachrichten die man schreibt, insofern man sehr viele Texte verschickt und man es einfach alles in einem und nicht etwas zusammengequetschteren Eindruck erhält.",
   "main": "changeContent.js",
   "scripts": {
-    "build": "node build-images-json.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

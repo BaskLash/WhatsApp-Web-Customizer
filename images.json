@@ -1,89 +1,11 @@
 {
-  "animals": {
+  "predefined": {
     "files": [
-      "images/animals/aj-robbie-BuQ1RZckYW4-unsplash.jpg",
-      "images/animals/cosmic-timetraveler-vU4R5PyEO4k-unsplash.jpg",
-      "images/animals/david-clode-7_TTPznVIQI-unsplash.jpg",
-      "images/animals/deepak-nautiyal-Nbv7PkL_rvI-unsplash.jpg",
-      "images/animals/hans-jurgen-mager-qQWV91TTBrE-unsplash.jpg",
-      "images/animals/jp-valery-xls6uaTIhaI-unsplash.jpg",
-      "images/animals/pexels-george-desipris-792381.jpg"
-    ]
-  },
-  "anime": {
-    "files": [
-      "images/anime/anime-min.jpg",
-      "images/anime/erde-im-anime-stil-min.jpg",
-      "images/anime/full-shot-ninja-wearing-equipment-min.jpg",
-      "images/anime/full-shot-ninja-winter-season-min.jpg"
-    ]
-  },
-  "beach": {
-    "files": [
-      "images/beach/luca-micheli-ruWkmt3nU58-unsplash-min.jpg",
-      "images/beach/sean-oulashin-KMn4VEeEPR8-unsplash-min.jpg"
-    ]
-  },
-  "city": {
-    "files": [
-      "images/city/charles-postiaux-q_xbE7RSvBI-unsplash-min.jpg",
-      "images/city/jezael-melgoza-layMbSJ3YOE-unsplash-min.jpg",
-      "images/city/simon-l-7GLJ96AjemY-unsplash-min.jpg",
-      "images/city/sorasak-_UIN-pFfJ7c-unsplash-min.jpg",
-      "images/city/timo-volz-DGsqL2j028E-unsplash-min.jpg",
-      "images/city/yoav-aziz-tKCd-IWc4gI-unsplash-min.jpg"
-    ]
-  },
-  "landscape": {
-    "files": [
-      "images/landscape/andrew-ridley-Kt5hRENuotI-unsplash-min.jpg",
-      "images/landscape/aniket-deole-M6XC789HLe8-unsplash-min.jpg",
-      "images/landscape/christian-joudrey-mWRR1xj95hg-unsplash-min.jpg",
-      "images/landscape/cristina-gottardi-wndpWTiDuT0-unsplash-min.jpg",
-      "images/landscape/damian-patkowski-T-LfvX-7IVg-unsplash-min.jpg",
-      "images/landscape/diego-jimenez-A-NVHPka9Rk-unsplash-min.jpg",
-      "images/landscape/jim-cooke-r6g4GcD6lP0-unsplash-min.jpg",
-      "images/landscape/johannes-plenio-hvrpOmuMrAI-unsplash-min.jpg",
-      "images/landscape/john-towner-JgOeRuGD_Y4-unsplash-min.jpg",
-      "images/landscape/jonatan-pie-P2vi01BW8vE-unsplash-min.jpg",
-      "images/landscape/karsten-wurth-B5drkS_Z5RM-unsplash-min.jpg",
-      "images/landscape/ken-cheung-KonWFWUaAuk-unsplash-min.jpg",
-      "images/landscape/luca-bravo-ESkw2ayO2As-unsplash-min.jpg",
-      "images/landscape/luca-micheli-r9RW20TrQ0Y-unsplash-min.jpg",
-      "images/landscape/mar-bustos-ARVFsI-32Uk-unsplash-min.jpg",
-      "images/landscape/neom-XN6Z9g3DM4A-unsplash-min.jpg",
-      "images/landscape/pascal-debrunner-1WQ5RZuH9xo-unsplash-min.jpg",
-      "images/landscape/pietro-de-grandi-T7K4aEPoGGk-unsplash-min.jpg",
-      "images/landscape/robert-lukeman-zNN6ubHmruI-unsplash-min.jpg",
-      "images/landscape/rodrigo-soares-c6SciRp2kaQ-unsplash-min.jpg",
-      "images/landscape/tobias-keller-73F4pKoUkM0-unsplash-min.jpg"
-    ]
-  },
-  "shape": {
-    "files": [
-      "images/shape/ashim-d-silva-WeYamle9fDM-unsplash.jpg"
-    ]
-  },
-  "sky": {
-    "files": [
-      "images/sky/ryan-hutton-Jztmx9yqjBw-unsplash-min.jpg"
-    ]
-  },
-  "skyline": {
-    "files": [
-      "images/skyline/andre-benz-lIa03ti94ec-unsplash-min.jpg",
-      "images/skyline/brad-knight-huWlb1NP67w-unsplash-min.jpg",
-      "images/skyline/ishan-seefromthesky-6U-sSfBV-gM-unsplash-min.jpg",
-      "images/skyline/jeff-brown-4Y_f_LvAu3U-unsplash-min.jpg",
-      "images/skyline/jeremy-doddridge-DnHUeDYzpUo-unsplash-min.jpg",
-      "images/skyline/luca-bravo-_QdFx92MO2U-unsplash-min.jpg",
-      "images/skyline/matthew-henry-VviFtDJakYk-unsplash-min.jpg",
-      "images/skyline/muzammil-soorma-KTdzeb28jyo-unsplash-min.jpg",
-      "images/skyline/mvrkle-RP7pgDrWcwE-unsplash-min.jpg",
-      "images/skyline/sagar-bhujel-Lg6PQ41-2Hc-unsplash-min.jpg",
-      "images/skyline/shawn-IdG-GxbBMSc-unsplash-min.jpg",
-      "images/skyline/su-san-lee-E_eWwM29wfU-unsplash-min.jpg",
-      "images/skyline/thomas-habr-wprOCzLIEYI-unsplash-min.jpg"
+      "https://picsum.photos/seed/wa-landscape/1600/900",
+      "https://picsum.photos/seed/wa-city/1600/900",
+      "https://picsum.photos/seed/wa-ocean/1600/900",
+      "https://picsum.photos/seed/wa-mountain/1600/900",
+      "https://picsum.photos/seed/wa-minimal/1600/900"
     ]
   }
 }
