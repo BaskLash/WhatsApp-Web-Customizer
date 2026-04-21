@@ -301,7 +301,8 @@ function clearSlotsUsing(src) {
 
 function openModal(type) {
   currentType = type;
-  modalTitle.textContent = `Image selection for ${type}`;
+  // Nutze innerHTML für die Formatierung (fett & kursiv)
+  modalTitle.innerHTML = `Image selection for <b><i>${type}</i></b>`;
   modal.style.display = "flex";
   modalGallery.scrollTo({ top: 0 });
 
