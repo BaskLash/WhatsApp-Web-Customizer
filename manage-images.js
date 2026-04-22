@@ -248,9 +248,12 @@ async function restoreImage(entry) {
 }
 
 async function addUploadedFromDataUrl(dataUrl, { mime, suggestedName, source, originalUrl }) {
-  if (uploadedImages.some((i) => i.dataUrl === dataUrl)) {
-    return { added: false, reason: "duplicate" };
-  }
+  if (uploadedImages.some((i) =>
+  i.dataUrl === dataUrl ||
+  (originalUrl && i.originalUrl === originalUrl)
+)) {
+  return { added: false, reason: "duplicate" };
+}
   const timestamp = Date.now() + Math.floor(Math.random() * 1000);
   const ext = extFromMime(mime);
   const prefix = source === "url" ? "url" : "upload";
@@ -309,6 +312,82 @@ async function handleFiles(files) {
     renderGallery();
   }
   fileInput.value = "";
+}
+
+async function handleSmartPaste() {
+  try {
+    const items = await navigator.clipboard.read();
+
+    let handled = false;
+
+    for (const item of items) {
+      // ─────────────────────────────
+      // 1. IMAGE FILE DIRECT (z. B. Screenshot)
+      // ─────────────────────────────
+      const imageType = item.types?.find(t => t.startsWith("image/"));
+if (imageType) {
+  const blob = await item.getType(imageType);
+  const file = new File([blob], "clipboard-image", { type: imageType });
+
+  await handleFiles([file]);
+
+  setStatus(urlStatus, "Image pasted from clipboard.", "success");
+  handled = true;
+  break;
+}
+
+      // ─────────────────────────────
+      // 2. HTML CLIPBOARD (z. B. aus Browser)
+      // ─────────────────────────────
+      if (item.types?.includes("text/html") && !handled){
+        const blob = await item.getType("text/html");
+        const html = await blob.text();
+
+        // versuche <img src="...">
+        const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+
+        if (match?.[1]) {
+          const url = match[1];
+
+          setStatus(urlStatus, "Processing clipboard image…", "info");
+urlInput.value = url;
+await handleUrlAdd();
+          handled = true;
+          break;
+        }
+      }
+
+      // ─────────────────────────────
+      // 3. TEXT URL FALLBACK
+      // ─────────────────────────────
+      if (item.types?.includes("text/plain") && !handled) {
+        const blob = await item.getType("text/plain");
+        const text = (await blob.text()).trim();
+
+        try {
+          const url = new URL(text);
+
+          if (url.protocol.startsWith("http")) {
+            urlInput.value = url.href;
+            setStatus(urlStatus, "URL pasted from clipboard.", "success");
+
+            await handleUrlAdd();
+            handled = true;
+            break;
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    if (!handled) {
+      setStatus(urlStatus, "No usable image found in clipboard.", "error");
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus(urlStatus, "Clipboard access denied or unsupported.", "error");
+  }
 }
 
 async function handleUrlAdd() {
@@ -464,3 +543,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
   await loadState();
   renderGallery();
 })();
+const pasteBtn = document.getElementById("paste-btn");
+
+if (pasteBtn) {
+  pasteBtn.addEventListener("click", handleSmartPaste);
+}

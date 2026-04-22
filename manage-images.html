@@ -408,6 +408,12 @@
             .back-link:hover {
                 color: var(--accent-color);
             }
+            #paste-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
         </style>
     </head>
 
@@ -454,6 +460,23 @@
                             placeholder="https://example.com/image.jpg"
                         />
                         <button class="primary" id="url-add-btn">Add</button>
+                        <button class="primary" id="paste-btn" title="Paste from clipboard">
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+    >
+        <path d="M9 2h6"></path>
+        <path d="M9 2a3 3 0 0 0-3 3v1h12V5a3 3 0 0 0-3-3"></path>
+        <rect x="5" y="4" width="14" height="18" rx="2"></rect>
+    </svg>
+</button>
                     </div>
                     <div class="status-line info" id="url-status"></div>
                 </div>
