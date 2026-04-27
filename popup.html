@@ -13,817 +13,848 @@
             name="keywords"
             content="WhatsApp Web, Customize WhatsApp, WhatsApp Chrome Extension, WhatsApp Web themes, WhatsApp Web backgrounds, WhatsApp Web font changer, hide WhatsApp features, personalize WhatsApp Web"
         />
+
+        <link rel="stylesheet" href="vendor/bootstrap/bootstrap.min.css" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+
+        <script src="popup-nav.js" defer></script>
         <script src="fontFamilyChange.js" defer></script>
         <script src="popup.js" defer></script>
         <script src="fontSizeChange.js" defer></script>
         <script src="imageSelection.js" defer></script>
         <script src="quick-replies.js" defer></script>
-        <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-            rel="stylesheet"
-        />
+
         <style>
+            /* ---- Theme tokens ---- */
             :root {
-                --bg-color: #1a1b26;
-                --text-color: #e0e0e0;
-                --accent-color: #10b981;
-                --accent-hover: #34d399;
-                --border-color: #2d2e3b;
-                --card-bg: #242530;
-                --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                --glow: 0 0 8px rgba(16, 185, 129, 0.3);
+                --wa-bg: #1a1b26;
+                --wa-surface: #242530;
+                --wa-surface-2: #2d2e3b;
+                --wa-border: #2d2e3b;
+                --wa-text: #e0e0e0;
+                --wa-muted: #a0a0a0;
+                --wa-accent: #10b981;
+                --wa-accent-hover: #34d399;
+                --wa-glow: 0 0 8px rgba(16, 185, 129, 0.3);
+                --bs-success: #10b981;
+                --bs-success-rgb: 16, 185, 129;
             }
 
-            * {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
+            html,
+            body {
+                background-color: var(--wa-bg);
+                color: var(--wa-text);
+                font-family: "Inter", sans-serif;
             }
 
             body {
-                font-family: "Inter", sans-serif;
-                background-color: var(--bg-color);
-                color: var(--text-color);
-                width: 700px;
-                height: 600px;
-                display: flex;
-                flex-direction: column;
+                width: 720px;
+                height: 580px;
+                margin: 0;
                 overflow: hidden;
             }
 
-            h1 {
-                font-size: 24px;
-                font-weight: 600;
-                padding: 20px;
-                background: linear-gradient(180deg, var(--card-bg), var(--bg-color));
-                border-bottom: 1px solid var(--border-color);
-                text-align: center;
-            }
-
-            .container {
-                display: flex;
-                flex: 1;
-                overflow: hidden;
-            }
-
-            .left-panel,
-            .middle-panel,
-            .right-panel {
-                padding: 20px;
-                overflow-y: auto;
-                border-right: 1px solid var(--border-color);
-            }
-
-            .left-panel {
-                flex: 1;
-            }
-
-            .middle-panel {
-                flex: 1.5;
-            }
-
-            .right-panel {
-                flex: 1;
-                border-right: none;
-            }
-
-            h3 {
-                font-size: 14px;
-                font-weight: 500;
-                text-transform: uppercase;
-                color: #a0a0a0;
-                margin-bottom: 15px;
-                letter-spacing: 0.5px;
-            }
-
-            .section {
-                margin-bottom: 25px;
-            }
-
-            .image-selector,
-            .image-option {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 12px;
-                cursor: pointer;
-            }
-
-            .image-option {
-                width: 100px;
-                height: 100px;
-                border: 2px solid var(--border-color);
+            /* ---- Pill nav (vertical) ---- */
+            .nav-pills .nav-link {
+                color: var(--wa-muted);
+                text-align: left;
                 border-radius: 8px;
+                padding: 8px 12px;
+                font-size: 13px;
+                font-weight: 500;
+            }
+            .nav-pills .nav-link:hover {
+                color: var(--wa-text);
+                background: rgba(255, 255, 255, 0.04);
+            }
+            .nav-pills .nav-link.active {
+                background: var(--wa-accent);
+                color: #fff;
+            }
+
+            /* ---- Form controls in dark theme ---- */
+            .form-control,
+            .form-select {
+                background-color: var(--wa-surface);
+                border-color: var(--wa-border);
+                color: var(--wa-text);
+            }
+            .form-control:focus,
+            .form-select:focus {
+                background-color: var(--wa-surface);
+                color: var(--wa-text);
+                border-color: var(--wa-accent);
+                box-shadow: var(--wa-glow);
+            }
+            .form-control::placeholder {
+                color: var(--wa-muted);
+            }
+            .form-control-color {
+                background-color: var(--wa-surface);
+                border-color: var(--wa-border);
+                height: 42px;
+            }
+            .form-check-input:checked {
+                background-color: var(--wa-accent);
+                border-color: var(--wa-accent);
+            }
+            .form-range::-webkit-slider-thumb {
+                background: var(--wa-accent);
+            }
+            .form-range::-moz-range-thumb {
+                background: var(--wa-accent);
+            }
+
+            /* ---- Background slot cards ---- */
+            .slot-card {
+                background: var(--wa-surface);
+                border: 1px solid var(--wa-border);
+                border-radius: 10px;
+                cursor: pointer;
                 overflow: hidden;
-                transition: all 0.3s ease;
+                transition: border-color 0.2s ease, box-shadow 0.2s ease,
+                    transform 0.15s ease;
             }
-
-            .image-option:hover {
-                border-color: var(--accent-color);
-                box-shadow: var(--glow);
+            .slot-card:hover,
+            .slot-card:focus-visible {
+                border-color: var(--wa-accent);
+                box-shadow: var(--wa-glow);
+                transform: translateY(-1px);
+                outline: none;
             }
-
-            .image-option.selected {
-                border-color: var(--accent-color);
-                box-shadow: var(--glow);
+            .slot-card .slot-header {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 12px 6px;
             }
-
-            .image-option img {
+            .slot-card .slot-icon {
+                width: 28px;
+                height: 28px;
+                flex-shrink: 0;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 6px;
+                background: rgba(16, 185, 129, 0.12);
+                color: var(--wa-accent);
+            }
+            .slot-card .slot-title {
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--wa-text);
+                line-height: 1.15;
+            }
+            .slot-card .slot-sub {
+                font-size: 11px;
+                color: var(--wa-muted);
+                line-height: 1.15;
+            }
+            .slot-card .slot-preview {
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
-            }
-
-            .preview-image {
-                width: 100%;
-                max-height: 100px;
-                object-fit: cover;
-                border-radius: 8px;
-            }
-
-            /* Upload Button */
-            #modal-upload {
-                flex: 1;
-                padding: 12px;
-                border: none;
-                border-radius: 6px;
-                background: var(--accent-color);
-                color: #fff;
-                font-size: 14px;
-                font-weight: 500;
-                cursor: pointer;
-                transition: all 0.3s ease;
-            }
-
-            #modal-upload:hover {
-                background: var(--accent-hover);
-                box-shadow: var(--glow);
-            }
-
-            /* Checkbox Styles */
-            label {
-                display: flex;
-                align-items: center;
-                margin-bottom: 12px;
-                border-radius: 6px;
-                transition: background-color 0.2s ease;
-                cursor: pointer;
-            }
-
-            label:hover {
-                background-color: rgba(255, 255, 255, 0.05);
-            }
-
-            input[type="checkbox"] {
-                appearance: none;
-                width: 18px;
-                height: 18px;
-                margin-right: 10px;
-                border: 2px solid var(--border-color);
-                border-radius: 4px;
-                background-color: transparent;
-                transition: all 0.2s ease;
-                position: relative;
-            }
-
-            input[type="checkbox"]:checked {
-                background-color: var(--accent-color);
-                border-color: var(--accent-color);
-            }
-
-            input[type="checkbox"]:checked::after {
-                content: "";
-                position: absolute;
-                left: 5px;
-                top: 1px;
-                width: 5px;
-                height: 10px;
-                border: solid #fff;
-                border-width: 0 2px 2px 0;
-                transform: rotate(45deg);
-            }
-
-            label span {
-                font-size: 14px;
-                font-weight: 400;
-            }
-
-            /* Font and Color Selectors */
-            select,
-            button,
-            input[type="color"] {
-                width: 100%;
-                padding: 10px;
-                border-radius: 6px;
-                border: 1px solid var(--border-color);
-                background: var(--card-bg);
-                color: var(--text-color);
-                font-size: 14px;
-                transition: all 0.3s ease;
-                margin-bottom: 12px;
-            }
-
-            select:focus,
-            button:hover {
-                border-color: var(--accent-color);
-                box-shadow: var(--glow);
-            }
-
-            input[type="color"] {
-                height: 40px;
-                padding: 4px;
-            }
-
-            /* Social Links and Donation Button */
-            .social-links {
-                display: flex;
-                gap: 12px;
-                margin-top: 20px;
-                justify-content: center;
-                align-items: center;
-            }
-
-            .social-links a,
-            .donation-button {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                background: var(--card-bg);
-                color: var(--text-color);
-                text-decoration: none;
-                transition: all 0.3s ease;
-                border: 1px solid var(--border-color);
-            }
-
-            .social-links a svg,
-            .donation-button svg {
-                width: 24px;
-                height: 24px;
                 display: block;
-                margin: auto;
-                /* Center SVG within the container */
+                background: var(--wa-bg);
             }
-
-            .social-links a:hover,
-            .donation-button:hover {
-                background: var(--accent-color);
-                color: #fff;
-                box-shadow: var(--glow);
-                transform: translateY(-2px);
-            }
-
-            .social-links a:hover svg {
-                stroke: #fff;
-                /* Ensure GitHub SVG stroke turns white on hover */
-            }
-
-            .donation-button svg {
-                fill: #ffc107;
-                /* Default yellow for BuyMeACoffee */
-            }
-
-            .donation-button:hover svg {
-                fill: #fff;
-                /* White fill on hover for BuyMeACoffee */
-            }
-
-            #feature-request,
-            #report-bug {
-                cursor: pointer;
-            }
-
-            .image-option {
-                position: relative;
-            }
-
-            .delete-btn {
-                position: absolute;
-                top: 5px;
-                right: 5px;
-                background: rgba(220, 38, 38, 0.9);
-                /* Rot */
-                color: white;
-                border: none;
-                border-radius: 50%;
-                width: 20px;
-                height: 20px;
+            .slot-card .slot-footer {
                 display: flex;
                 align-items: center;
-                justify-content: center;
-                font-size: 14px;
-                cursor: pointer;
-                opacity: 0;
-                transition: transform 0.2s;
-                /* Animation */
+                justify-content: space-between;
+                padding: 8px 12px;
+                border-top: 1px solid var(--wa-border);
+                font-size: 11px;
+                color: var(--wa-muted);
             }
 
-            .image-option:hover .delete-btn {
-                opacity: 1;
+            /* ---- Section labels ---- */
+            .section-label {
+                font-size: 11px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+                color: var(--wa-muted);
             }
 
-            .delete-btn:hover {
-                transform: scale(1.5);
-            }
-
-            /* Modal Styles */
+            /* ---- Image picker modal (kept as overlay; JS toggles display) ---- */
             #image-modal {
-                display: none;
                 position: fixed;
                 inset: 0;
                 background: rgba(0, 0, 0, 0.8);
+                z-index: 1050;
                 justify-content: center;
                 align-items: center;
-                z-index: 1000;
             }
-
-            #image-modal .modal-content {
-                background: var(--card-bg);
-                padding: 24px;
+            #image-modal .modal-card {
+                background: var(--wa-surface);
+                border: 1px solid var(--wa-border);
                 border-radius: 12px;
-                max-width: 600px;
-                max-height: 80vh;
+                width: min(640px, 92vw);
+                max-height: 88vh;
                 display: flex;
                 flex-direction: column;
-                box-shadow: var(--shadow);
+                padding: 18px;
+                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
             }
-
             #modal-gallery {
-                flex: 1;
-                max-height: 400px;
-                /* Fixed height for scrolling */
-                overflow-y: auto;
                 display: flex;
                 flex-wrap: wrap;
-                gap: 12px;
-                margin-top: 15px;
-            }
-
-            #modal-gallery .image-option {
-                width: 100px;
-                height: 100px;
-            }
-
-            .modal-buttons {
-                margin-top: 20px;
-                display: flex;
-                gap: 12px;
-                position: sticky;
-                bottom: 0;
-                background: var(--card-bg);
-                padding: 10px 0;
-            }
-
-            .modal-buttons button {
-                flex: 1;
-                padding: 12px;
-                border: none;
-                border-radius: 6px;
-                background: var(--accent-color);
-                color: #fff;
-                font-size: 14px;
-                font-weight: 500;
-                cursor: pointer;
-                transition: all 0.3s ease;
-            }
-
-            .modal-buttons button:hover {
-                background: var(--accent-hover);
-                box-shadow: var(--glow);
-            }
-
-            .scale-container {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                padding: 5px 0;
-            }
-
-            .scale-footer {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-
-            #scale-value {
-                font-weight: bold;
-                color: #00a884;
-            }
-
-            #reset-scale {
-                background: #444;
-                color: white;
-                border: none;
-                padding: 4px 10px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 11px;
-                transition: background 0.2s;
-            }
-
-            #reset-scale:hover {
-                background: #666;
-            }
-            .section-header {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-bottom: 10px;
-            }
-
-            .color-pair {
-                display: flex;
-                gap: 12px;
-                margin-bottom: 12px;
-            }
-
-            .color-pair-item {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
-            }
-
-            .color-pair-label {
-                font-size: 11px;
-                color: #a0a0a0;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-
-            .color-pair-item input[type="color"] {
-                width: 100%;
-                height: 40px;
-                padding: 4px;
-                margin-bottom: 0;
-            }
-
-            /* Quick Replies Editor */
-            #qr-list {
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-                margin-bottom: 10px;
-                max-height: 180px;
+                gap: 10px;
                 overflow-y: auto;
+                max-height: 50vh;
+                padding: 4px;
+                margin-top: 12px;
             }
 
+            /* Modal-only tile rules. SCOPED to #modal-gallery so they don't
+               leak onto background slot cards (which also need .image-option
+               so imageSelection.js click delegation still picks them up). */
+            #modal-gallery .image-option {
+                position: relative;
+                width: 104px;
+                height: 104px;
+                border: 2px solid var(--wa-border);
+                border-radius: 8px;
+                overflow: hidden;
+                cursor: pointer;
+                transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            }
+            #modal-gallery .image-option:hover,
+            #modal-gallery .image-option.selected {
+                border-color: var(--wa-accent);
+                box-shadow: var(--wa-glow);
+            }
+            #modal-gallery .image-option img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
+            }
+            #modal-gallery .delete-btn {
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                width: 22px;
+                height: 22px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(220, 38, 38, 0.9);
+                color: #fff;
+                border: none;
+                border-radius: 50%;
+                font-size: 13px;
+                cursor: pointer;
+                opacity: 0;
+                transition: opacity 0.2s, transform 0.2s;
+            }
+            #modal-gallery .image-option:hover .delete-btn {
+                opacity: 1;
+            }
+            #modal-gallery .delete-btn:hover {
+                transform: scale(1.15);
+            }
+
+            /* Quick-reply rows (built dynamically by quick-replies.js) */
             .qr-item {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                background: var(--bg-color);
-                border: 1px solid var(--border-color);
+                gap: 8px;
+                background: var(--wa-bg);
+                border: 1px solid var(--wa-border);
                 border-radius: 6px;
                 padding: 6px 10px;
-                gap: 8px;
+                margin-bottom: 6px;
             }
-
             .qr-text {
                 flex: 1;
                 font-size: 13px;
-                color: var(--text-color);
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
-
             .qr-edit-input {
                 flex: 1;
-                background: var(--bg-color);
-                border: 1px solid var(--accent-color);
+                background: var(--wa-bg);
+                border: 1px solid var(--wa-accent);
                 border-radius: 4px;
-                color: var(--text-color);
+                color: var(--wa-text);
                 font-size: 13px;
                 padding: 2px 6px;
                 outline: none;
-                width: 0;
+                min-width: 0;
             }
-
             .qr-actions {
                 display: flex;
                 gap: 4px;
                 flex-shrink: 0;
             }
-
             .qr-btn {
-                width: auto !important;
-                padding: 3px 7px !important;
-                font-size: 12px !important;
-                margin-bottom: 0 !important;
-                border: none !important;
-                border-radius: 4px !important;
+                background: var(--wa-surface);
+                color: var(--wa-text);
+                border: none;
+                border-radius: 4px;
+                padding: 3px 8px;
+                font-size: 12px;
                 cursor: pointer;
-                background: var(--card-bg) !important;
-                color: var(--text-color) !important;
-                transition: background 0.2s !important;
+                transition: background 0.15s;
             }
-
             .qr-btn:hover {
-                background: var(--accent-color) !important;
-                color: #fff !important;
-                box-shadow: none !important;
+                background: var(--wa-accent);
+                color: #fff;
             }
-
             .qr-delete-btn:hover {
-                background: #dc2626 !important;
+                background: #dc2626;
             }
 
-            .qr-add-row {
-                display: flex;
-                gap: 8px;
-            }
-
-            #qr-new-input {
-                flex: 1;
-                background: var(--bg-color);
-                border: 1px solid var(--border-color);
+            /* Font live preview block */
+            #font-preview {
+                background: var(--wa-bg);
+                border: 1px solid var(--wa-border);
                 border-radius: 6px;
-                color: var(--text-color);
-                font-size: 13px;
-                padding: 8px 10px;
-                outline: none;
-                transition: border-color 0.2s;
-                width: 0;
+                padding: 10px 12px;
+                font-size: 16px;
+                color: var(--wa-text);
             }
 
-            #qr-new-input:focus {
-                border-color: var(--accent-color);
-            }
-
-            #qr-add-btn {
-                width: auto !important;
-                padding: 8px 14px !important;
-                margin-bottom: 0 !important;
-                background: var(--accent-color) !important;
-                color: #fff !important;
-                border: none !important;
-                border-radius: 6px !important;
-                font-size: 13px !important;
-                font-weight: 500 !important;
-                cursor: pointer;
-                white-space: nowrap;
-            }
-
-            #qr-add-btn:hover {
-                background: var(--accent-hover) !important;
-                box-shadow: var(--glow) !important;
+            /* Collapse helper for the Effects accordion */
+            .collapse:not(.show) {
+                display: none;
             }
         </style>
     </head>
 
-    <body>
-        <h1>WhatsApp Customizer</h1>
-        <div class="container">
-            <div class="left-panel">
-                <h3>Toggle Elements</h3>
-                <label><input type="checkbox" id="status" /> <span>Show Status</span></label>
-                <label><input type="checkbox" id="channels" /><span>Show Channels</span></label>
-                <label><input type="checkbox" id="communities" /><span>Show Communities</span></label>
+    <body class="d-flex flex-column">
+        <!-- Header -->
+        <header
+            class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
+            style="border-color: var(--wa-border) !important"
+        >
+            <h1 class="h6 m-0 fw-semibold">WhatsApp Customizer</h1>
+            <button
+                type="button"
+                class="btn btn-sm btn-link text-secondary text-decoration-none p-0"
+                data-tab="tab-about"
+            >
+                About
+            </button>
+        </header>
 
-                <h3>Chat Elements</h3>
-                <label><input type="checkbox" id="lockedChats" /><span>Show Locked Chats</span></label>
-                <label><input type="checkbox" id="archived" /><span>Show Archived</span></label>
+        <!-- Workspace -->
+        <div class="d-flex flex-grow-1" style="min-height: 0">
+            <!-- Vertical pill nav -->
+            <nav
+                class="nav nav-pills flex-column p-2 border-end gap-1"
+                style="width: 148px; flex-shrink: 0; border-color: var(--wa-border) !important"
+            >
+                <a class="nav-link active" data-tab="tab-display" href="#">Display</a>
+                <a class="nav-link" data-tab="tab-backgrounds" href="#">Backgrounds</a>
+                <a class="nav-link" data-tab="tab-typography" href="#">Typography</a>
+                <a class="nav-link" data-tab="tab-colors" href="#">Colors</a>
+                <a class="nav-link" data-tab="tab-replies" href="#">Quick Replies</a>
+                <a class="nav-link" data-tab="tab-about" href="#">About</a>
+            </nav>
 
-                <h3>Display &amp; Privacy</h3>
-                <label><input type="checkbox" id="privacyMode" /> <span>Privacy Mode (Blur Previews)</span></label>
+            <!-- Tab content (single scroll region) -->
+            <main class="flex-grow-1 p-3 overflow-auto">
+                <div class="tab-content">
+                    <!-- ─────── DISPLAY ─────── -->
+                    <section class="tab-pane fade show active" id="tab-display">
+                        <h2 class="section-label mb-2">Visibility</h2>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="status" />
+                            <label class="form-check-label" for="status">Show Status</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="channels" />
+                            <label class="form-check-label" for="channels">Show Channels</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="communities" />
+                            <label class="form-check-label" for="communities">Show Communities</label>
+                        </div>
 
-                <div class="social-links">
-                    <a
-                        href="https://github.com/BaskLash/WhatsApp-Customizer"
-                        class="social-link"
-                        title="See the code behind this project on GitHub"
-                        target="_blank"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
+                        <h2 class="section-label mt-4 mb-2">Chat list</h2>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="lockedChats" />
+                            <label class="form-check-label" for="lockedChats">Show Locked Chats</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="archived" />
+                            <label class="form-check-label" for="archived">Show Archived</label>
+                        </div>
+
+                        <h2 class="section-label mt-4 mb-2">Privacy</h2>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="privacyMode" />
+                            <label class="form-check-label" for="privacyMode">
+                                Privacy Mode (blur message previews)
+                            </label>
+                        </div>
+                    </section>
+
+                    <!-- ─────── BACKGROUNDS ─────── -->
+                    <section class="tab-pane fade" id="tab-backgrounds">
+                        <h2 class="section-label mb-2">Background slots</h2>
+                        <p class="text-secondary small mb-3">
+                            Each tile controls one part of WhatsApp Web. Click a tile to pick its image.
+                        </p>
+
+                        <div class="row g-2">
+                            <!-- Welcome screen -->
+                            <div class="col-6">
+                                <div
+                                    class="slot-card image-option h-100"
+                                    data-type="welcome"
+                                    role="button"
+                                    tabindex="0"
+                                    aria-label="Choose Welcome Screen background"
+                                >
+                                    <div class="slot-header">
+                                        <span class="slot-icon" aria-hidden="true">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M3 12l9-9 9 9" />
+                                                <path d="M5 10v10h14V10" />
+                                            </svg>
+                                        </span>
+                                        <div>
+                                            <div class="slot-title">Welcome Screen</div>
+                                            <div class="slot-sub">Before any chat is open</div>
+                                        </div>
+                                    </div>
+                                    <div class="ratio ratio-16x9">
+                                        <img
+                                            id="welcome-preview"
+                                            class="slot-preview"
+                                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect fill='%23242530' width='16' height='9'/%3E%3C/svg%3E"
+                                            alt="Welcome screen preview"
+                                        />
+                                    </div>
+                                    <div class="slot-footer">
+                                        <span>Tap to change</span>
+                                        <span class="text-success">›</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Navigation rail -->
+                            <div class="col-6">
+                                <div
+                                    class="slot-card image-option h-100"
+                                    data-type="navside"
+                                    role="button"
+                                    tabindex="0"
+                                    aria-label="Choose Navigation Rail background"
+                                >
+                                    <div class="slot-header">
+                                        <span class="slot-icon" aria-hidden="true">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="3" y="3" width="6" height="18" rx="1" />
+                                                <line x1="13" y1="6" x2="20" y2="6" />
+                                                <line x1="13" y1="12" x2="20" y2="12" />
+                                                <line x1="13" y1="18" x2="20" y2="18" />
+                                            </svg>
+                                        </span>
+                                        <div>
+                                            <div class="slot-title">Navigation Rail</div>
+                                            <div class="slot-sub">Thin icon column on the far left</div>
+                                        </div>
+                                    </div>
+                                    <div class="ratio ratio-16x9">
+                                        <img
+                                            id="navside-preview"
+                                            class="slot-preview"
+                                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect fill='%23242530' width='16' height='9'/%3E%3C/svg%3E"
+                                            alt="Navigation rail preview"
+                                        />
+                                    </div>
+                                    <div class="slot-footer">
+                                        <span>Tap to change</span>
+                                        <span class="text-success">›</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Chat List -->
+                            <div class="col-6">
+                                <div
+                                    class="slot-card image-option h-100"
+                                    data-type="sidenav"
+                                    role="button"
+                                    tabindex="0"
+                                    aria-label="Choose Chat List background"
+                                >
+                                    <div class="slot-header">
+                                        <span class="slot-icon" aria-hidden="true">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="4" y1="6" x2="20" y2="6" />
+                                                <line x1="4" y1="12" x2="20" y2="12" />
+                                                <line x1="4" y1="18" x2="20" y2="18" />
+                                            </svg>
+                                        </span>
+                                        <div>
+                                            <div class="slot-title">Chat List</div>
+                                            <div class="slot-sub">Sidebar with all conversations</div>
+                                        </div>
+                                    </div>
+                                    <div class="ratio ratio-16x9">
+                                        <img
+                                            id="sidenav-preview"
+                                            class="slot-preview"
+                                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect fill='%23242530' width='16' height='9'/%3E%3C/svg%3E"
+                                            alt="Chat list preview"
+                                        />
+                                    </div>
+                                    <div class="slot-footer">
+                                        <span>Tap to change</span>
+                                        <span class="text-success">›</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Chat View -->
+                            <div class="col-6">
+                                <div
+                                    class="slot-card image-option h-100"
+                                    data-type="chatview"
+                                    role="button"
+                                    tabindex="0"
+                                    aria-label="Choose Chat View background"
+                                >
+                                    <div class="slot-header">
+                                        <span class="slot-icon" aria-hidden="true">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5z" />
+                                            </svg>
+                                        </span>
+                                        <div>
+                                            <div class="slot-title">Chat View</div>
+                                            <div class="slot-sub">Behind the open conversation</div>
+                                        </div>
+                                    </div>
+                                    <div class="ratio ratio-16x9">
+                                        <img
+                                            id="chatview-preview"
+                                            class="slot-preview"
+                                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect fill='%23242530' width='16' height='9'/%3E%3C/svg%3E"
+                                            alt="Chat view preview"
+                                        />
+                                    </div>
+                                    <div class="slot-footer">
+                                        <span>Tap to change</span>
+                                        <span class="text-success">›</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ─────── TYPOGRAPHY ─────── -->
+                    <section class="tab-pane fade" id="tab-typography">
+                        <h2 class="section-label mb-2">Font family</h2>
+                        <select id="fontSelector" class="form-select form-select-sm mb-2">
+                            <option value="">Nothing</option>
+                            <option value="Pacifico">Pacifico</option>
+                            <option value="Lobster">Lobster</option>
+                            <option value="Dancing+Script">Dancing Script</option>
+                            <option value="Roboto">Roboto</option>
+                            <option value="Open+Sans">Open Sans</option>
+                            <option value="Montserrat">Montserrat</option>
+                            <option value="Press+Start+2P">Press Start 2P</option>
+                            <option value="Indie+Flower">Indie Flower</option>
+                            <option value="Oswald">Oswald</option>
+                            <option value="Raleway">Raleway</option>
+                            <option value="Lora">Lora</option>
+                            <option value="Merriweather">Merriweather</option>
+                            <option value="PT+Sans">PT Sans</option>
+                            <option value="PT+Serif">PT Serif</option>
+                            <option value="Playfair+Display">Playfair Display</option>
+                            <option value="Quicksand">Quicksand</option>
+                            <option value="Ubuntu">Ubuntu</option>
+                            <option value="Fira+Sans">Fira Sans</option>
+                            <option value="Noto+Sans">Noto Sans</option>
+                            <option value="Raleway+Dots">Raleway Dots</option>
+                            <option value="Bebas+Neue">Bebas Neue</option>
+                            <option value="Arvo">Arvo</option>
+                            <option value="Cabin">Cabin</option>
+                            <option value="Amatic+SC">Amatic SC</option>
+                            <option value="Caveat">Caveat</option>
+                            <option value="Satisfy">Satisfy</option>
+                            <option value="Patua+One">Patua One</option>
+                            <option value="Fredoka+One">Fredoka One</option>
+                            <option value="Shadows+Into+Light">Shadows Into Light</option>
+                            <option value="Kalam">Kalam</option>
+                            <option value="Indie+Flower">Indie Flower</option>
+                        </select>
+                        <div id="font-preview" class="mb-4">
+                            The quick brown fox jumps over the lazy dog
+                        </div>
+
+                        <h2 class="section-label mb-2">Font size</h2>
+                        <input
+                            type="range"
+                            id="font-scale-slider"
+                            class="form-range mb-2"
+                            min="0.5"
+                            max="1.5"
+                            step="0.05"
+                            value="1"
+                        />
+                        <div class="d-flex align-items-center gap-2">
+                            <input
+                                type="number"
+                                id="scale-percent-input"
+                                class="form-control form-control-sm"
+                                min="50"
+                                max="150"
+                                step="1"
+                                value="100"
+                                style="width: 84px"
+                            />
+                            <span class="text-secondary small">%</span>
+                            <button
+                                id="reset-scale"
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary ms-auto"
+                            >
+                                Reset
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- ─────── COLORS ─────── -->
+                    <section class="tab-pane fade" id="tab-colors">
+                        <h2 class="section-label mb-2">Message bubbles</h2>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label for="colorIn" class="form-label small text-secondary mb-1">
+                                    Incoming
+                                </label>
+                                <input
+                                    type="color"
+                                    id="colorIn"
+                                    class="form-control form-control-color w-100"
+                                    value="#00aaff"
+                                />
+                            </div>
+                            <div class="col-6">
+                                <label for="colorOut" class="form-label small text-secondary mb-1">
+                                    Outgoing
+                                </label>
+                                <input
+                                    type="color"
+                                    id="colorOut"
+                                    class="form-control form-control-color w-100"
+                                    value="#00ff88"
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            id="discoButton3"
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary w-100 mb-3"
                         >
-                            <path
-                                d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"
-                            ></path>
-                        </svg>
-                    </a>
-                    <a
-                        href="https://discord.com/invite/cppbDz4qhn"
-                        class="donation-button"
-                        title="Join our Discord Server"
-                        target="_blank"
-                        aria-label="Join our Discord Server"
-                    >
-                        <svg xmlns="http://w3.org" viewBox="0 0 127.14 96.36">
-                            <path
-                                fill="#5865F2"
-                                d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.71,32.65-1.78,56.63.51,80.21a105.73,105.73,0,0,0,32.21,16.15c2.45-3.38,4.63-6.97,6.44-10.75a67.35,67.35,0,0,1-10.37-5c.86-.63,1.72-1.28,2.54-1.95a73.52,73.52,0,0,0,64,0c.84.67,1.71,1.32,2.57,1.95a67.27,67.27,0,0,1-10.37,5c1.82,3.77,4.06,7.37,6.51,10.75a105.52,105.52,0,0,0,32.29-16.16C130.58,50.63,121.55,27.18,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5.07-12.73,11.41-12.73S54,45.92,53.86,53,48.79,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5.07-12.73,11.44-12.73S96.23,45.92,96.08,53,91,65.69,84.69,65.69Z"
-                            />
-                        </svg>
-                    </a>
-                </div>
+                            Reset Colors
+                        </button>
 
-                <div class="button-links">
-                    <br />
-                    <button id="report-bug">
-                        <svg style="width: 16px; height: 16px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                            ></path>
-                        </svg>
-                        Report Bug
-                    </button>
-                    <button id="feature-request">
-                        <svg style="width: 16px; height: 16px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6C7.8 12.16 7 10.63 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"
-                            />
-                        </svg>
-                        Feature Request
-                    </button>
-                </div>
-            </div>
-
-            <div class="middle-panel">
-                <!-- Quick Replies bleiben oben (optional) -->
-                <div class="section" style="margin-top: 20px">
-                    <h3>Quick Replies</h3>
-                    <div id="qr-list"></div>
-                    <div class="qr-add-row">
-                        <input type="text" id="qr-new-input" placeholder="Type a new quick reply…" maxlength="200" />
-                        <button id="qr-add-btn">Add</button>
-                    </div>
-                </div>
-
-                <div
-                    class="preview-grid"
-                    style="display: flex; gap: 4px; width: 100%; box-sizing: border-box; padding: 5px 0"
-                >
-                    <!-- 1. Welcome Page -->
-                    <div class="section" style="flex: 1; width: 25%; margin: 0; padding: 0">
-                        <!-- HIER text-align: center ergänzt -->
-                        <h4 style="margin: 0 0 2px 0; font-size: 15px; white-space: nowrap; text-align: center">
-                            Welcome
-                        </h4>
-                        <div class="image-selector" id="welcome-selector">
-                            <div class="image-option" data-type="welcome" style="margin: 0; line-height: 0">
-                                <img
-                                    id="welcome-preview"
-                                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect fill='%23242530' width='16' height='9'/%3E%3C/svg%3E"
-                                    alt="Preview"
-                                    style="width: 100%; height: auto; display: block; border-radius: 2px"
-                                />
+                        <div class="border-top pt-3" style="border-color: var(--wa-border) !important">
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-link text-secondary text-decoration-none p-0 collapsed"
+                                data-collapse="#effects"
+                                aria-expanded="false"
+                            >
+                                ▸ Effects (fun presets)
+                            </button>
+                            <div id="effects" class="collapse mt-2">
+                                <div class="d-grid gap-2">
+                                    <button
+                                        id="discoButton"
+                                        type="button"
+                                        class="btn btn-sm btn-outline-success"
+                                    >
+                                        Disco Color
+                                    </button>
+                                    <button
+                                        id="discoButton2"
+                                        type="button"
+                                        class="btn btn-sm btn-outline-success"
+                                    >
+                                        Bang Bang Color
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
-                    <!-- 2. NavSide -->
-                    <div class="section" style="flex: 1; width: 25%; margin: 0; padding: 0">
-                        <h4 style="margin: 0 0 2px 0; font-size: 15px; white-space: nowrap; text-align: center">Nav</h4>
-                        <div class="image-selector" id="navside-selector">
-                            <div class="image-option" data-type="navside" style="margin: 0; line-height: 0">
-                                <img
-                                    id="navside-preview"
-                                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect fill='%23242530' width='16' height='9'/%3E%3C/svg%3E"
-                                    alt="Preview"
-                                    style="width: 100%; height: auto; display: block; border-radius: 2px"
-                                />
+                    <!-- ─────── QUICK REPLIES ─────── -->
+                    <section class="tab-pane fade" id="tab-replies">
+                        <h2 class="section-label mb-2">Quick replies</h2>
+                        <p class="text-secondary small mb-3">
+                            Canned responses you can paste into any chat from WhatsApp Web.
+                        </p>
+
+                        <!-- Create UI is the FIRST thing the user sees in this tab. -->
+                        <div
+                            class="card mb-3"
+                            style="background: var(--wa-surface); border: 1px solid var(--wa-accent)"
+                        >
+                            <div class="card-body p-3">
+                                <label
+                                    for="qr-new-input"
+                                    class="form-label small fw-semibold mb-2 d-flex align-items-center gap-2"
+                                    style="color: var(--wa-accent)"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2.5"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="12" y1="5" x2="12" y2="19" />
+                                        <line x1="5" y1="12" x2="19" y2="12" />
+                                    </svg>
+                                    Create a new quick reply
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <input
+                                        type="text"
+                                        id="qr-new-input"
+                                        class="form-control"
+                                        placeholder="e.g. On my way!"
+                                        maxlength="200"
+                                    />
+                                    <button id="qr-add-btn" type="button" class="btn btn-success">
+                                        Add
+                                    </button>
+                                </div>
+                                <small class="text-secondary d-block mt-2">
+                                    Press <kbd class="small">Enter</kbd> or click <strong>Add</strong> to save.
+                                </small>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- 3. Side -->
-                    <div class="section" style="flex: 1; width: 25%; margin: 0; padding: 0">
-                        <h4 style="margin: 0 0 2px 0; font-size: 15px; white-space: nowrap; text-align: center">
-                            Side
-                        </h4>
-                        <div class="image-selector" id="sidenav-selector">
-                            <div class="image-option" data-type="sidenav" style="margin: 0; line-height: 0">
-                                <img
-                                    id="sidenav-preview"
-                                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect fill='%23242530' width='16' height='9'/%3E%3C/svg%3E"
-                                    alt="Preview"
-                                    style="width: 100%; height: auto; display: block; border-radius: 2px"
-                                />
-                            </div>
-                        </div>
-                    </div>
+                        <h2 class="section-label mb-2">Your replies</h2>
+                        <div id="qr-list"></div>
+                    </section>
 
-                    <!-- 4. Chat View -->
-                    <div class="section" style="flex: 1; width: 25%; margin: 0; padding: 0">
-                        <h4 style="margin: 0 0 2px 0; font-size: 15px; white-space: nowrap; text-align: center">
-                            Chat
-                        </h4>
-                        <div class="image-selector" id="chatview-selector">
-                            <div class="image-option" data-type="chatview" style="margin: 0; line-height: 0">
-                                <img
-                                    id="chatview-preview"
-                                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect fill='%23242530' width='16' height='9'/%3E%3C/svg%3E"
-                                    alt="Preview"
-                                    style="width: 100%; height: auto; display: block; border-radius: 2px"
-                                />
-                            </div>
+                    <!-- ─────── ABOUT ─────── -->
+                    <section class="tab-pane fade" id="tab-about">
+                        <h2 class="section-label mb-2">Project</h2>
+                        <p class="small text-secondary mb-3">
+                            WhatsApp Web Customizer is open source. Issues and pull requests welcome.
+                        </p>
+
+                        <div class="d-grid gap-2 mb-4">
+                            <a
+                                href="https://github.com/BaskLash/WhatsApp-Customizer"
+                                target="_blank"
+                                rel="noopener"
+                                class="btn btn-sm btn-outline-light d-flex align-items-center justify-content-center gap-2"
+                                title="See the code behind this project on GitHub"
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                >
+                                    <path
+                                        d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"
+                                    />
+                                </svg>
+                                GitHub
+                            </a>
+                            <a
+                                href="https://discord.com/invite/cppbDz4qhn"
+                                target="_blank"
+                                rel="noopener"
+                                class="btn btn-sm btn-outline-light d-flex align-items-center justify-content-center gap-2"
+                                title="Join our Discord Server"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="14" viewBox="0 0 127.14 96.36">
+                                    <path
+                                        fill="#5865F2"
+                                        d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.71,32.65-1.78,56.63.51,80.21a105.73,105.73,0,0,0,32.21,16.15c2.45-3.38,4.63-6.97,6.44-10.75a67.35,67.35,0,0,1-10.37-5c.86-.63,1.72-1.28,2.54-1.95a73.52,73.52,0,0,0,64,0c.84.67,1.71,1.32,2.57,1.95a67.27,67.27,0,0,1-10.37,5c1.82,3.77,4.06,7.37,6.51,10.75a105.52,105.52,0,0,0,32.29-16.16C130.58,50.63,121.55,27.18,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5.07-12.73,11.41-12.73S54,45.92,53.86,53,48.79,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5.07-12.73,11.44-12.73S96.23,45.92,96.08,53,91,65.69,84.69,65.69Z"
+                                    />
+                                </svg>
+                                Discord
+                            </a>
                         </div>
-                    </div>
+
+                        <h2 class="section-label mb-2">Feedback</h2>
+                        <div class="d-grid gap-2">
+                            <button
+                                id="report-bug"
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-center gap-2"
+                            >
+                                <svg style="width: 14px; height: 14px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                </svg>
+                                Report Bug
+                            </button>
+                            <button
+                                id="feature-request"
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-center gap-2"
+                            >
+                                <svg style="width: 14px; height: 14px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6C7.8 12.16 7 10.63 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"
+                                    />
+                                </svg>
+                                Feature Request
+                            </button>
+                        </div>
+                    </section>
                 </div>
-            </div>
-
-            <div class="right-panel">
-                <div class="section">
-                    <h3>Font Selection</h3>
-                    <select id="fontSelector">
-                        <option value="">Nothing</option>
-                        <option value="Pacifico">Pacifico</option>
-                        <option value="Lobster">Lobster</option>
-                        <option value="Dancing+Script">Dancing Script</option>
-                        <option value="Roboto">Roboto</option>
-                        <option value="Open+Sans">Open Sans</option>
-                        <option value="Montserrat">Montserrat</option>
-                        <option value="Press+Start+2P">Press Start 2P</option>
-                        <option value="Indie+Flower">Indie Flower</option>
-                        <option value="Oswald">Oswald</option>
-                        <option value="Raleway">Raleway</option>
-                        <option value="Lora">Lora</option>
-                        <option value="Merriweather">Merriweather</option>
-                        <option value="PT+Sans">PT Sans</option>
-                        <option value="PT+Serif">PT Serif</option>
-                        <option value="Playfair+Display">Playfair Display</option>
-                        <option value="Quicksand">Quicksand</option>
-                        <option value="Ubuntu">Ubuntu</option>
-                        <option value="Fira+Sans">Fira Sans</option>
-                        <option value="Noto+Sans">Noto Sans</option>
-                        <option value="Raleway+Dots">Raleway Dots</option>
-                        <option value="Bebas+Neue">Bebas Neue</option>
-                        <option value="Arvo">Arvo</option>
-                        <option value="Cabin">Cabin</option>
-                        <option value="Amatic+SC">Amatic SC</option>
-                        <option value="Caveat">Caveat</option>
-                        <option value="Satisfy">Satisfy</option>
-                        <option value="Patua+One">Patua One</option>
-                        <option value="Fredoka+One">Fredoka One</option>
-                        <option value="Shadows+Into+Light">Shadows Into Light</option>
-                        <option value="Kalam">Kalam</option>
-                        <option value="Indie+Flower">Indie Flower</option>
-                    </select>
-                </div>
-
-                <div class="section">
-                    <div class="section-header">
-                        <h3>Change Font Size</h3>
-                    </div>
-
-                    <div class="scale-container">
-                        <input type="range" id="font-scale-slider" min="0.5" max="1.5" step="0.05" value="1" />
-
-                        <div class="scale-footer">
-                            <input type="number" id="scale-percent-input" min="50" max="150" step="1" value="100" />
-                            <span>%</span>
-
-                            <button id="reset-scale" title="Reset to 100%">Reset</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="section">
-                    <h3>Color Selection</h3>
-                    <div class="color-pair">
-                        <div class="color-pair-item">
-                            <span class="color-pair-label">Incoming</span>
-                            <input type="color" id="colorIn" value="#00aaff" />
-                        </div>
-                        <div class="color-pair-item">
-                            <span class="color-pair-label">Outgoing</span>
-                            <input type="color" id="colorOut" value="#00ff88" />
-                        </div>
-                    </div>
-                    <button type="button" id="discoButton">Disco Color</button>
-                    <button type="button" id="discoButton2">Bang Bang Color</button>
-                    <button type="button" id="discoButton3">Reset Color</button>
-                </div>
-            </div>
+            </main>
         </div>
 
-        <!-- Modal -->
-        <div id="image-modal">
-            <div class="modal-content">
-                <h3 id="modal-title">Image Selection</h3>
+        <!-- Image picker modal — kept as overlay div toggled by imageSelection.js
+             via style.display = "flex" / "none". DO NOT replace with Bootstrap's
+             modal component; the existing JS depends on this exact mechanism. -->
+        <div id="image-modal" style="display: none">
+            <div class="modal-card">
+                <h3 id="modal-title" class="h6 m-0">Image Selection</h3>
                 <div id="modal-gallery"></div>
-                <div class="modal-buttons">
-                    <button id="modal-upload">Manage Images</button>
-                    <button id="modal-save">Save</button>
-                    <button id="modal-none">No Image</button>
-                    <button id="modal-cancel">Cancel</button>
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button id="modal-upload" type="button" class="btn btn-sm btn-success flex-fill">
+                        Manage Images
+                    </button>
+                    <button id="modal-save" type="button" class="btn btn-sm btn-success flex-fill">
+                        Save
+                    </button>
+                    <button id="modal-none" type="button" class="btn btn-sm btn-outline-light flex-fill">
+                        No Image
+                    </button>
+                    <button id="modal-cancel" type="button" class="btn btn-sm btn-outline-secondary flex-fill">
+                        Cancel
+                    </button>
                 </div>
             </div>
         </div>
