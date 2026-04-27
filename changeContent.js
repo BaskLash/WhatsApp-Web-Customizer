@@ -41,34 +41,56 @@ function customThemes() {
         document.head.appendChild(style);
       }
 
+      // Theme-aware frosted-glass styling for the chat list.
+      //   Default rules target LIGHT mode (dark text on a light wash).
+      //   `body.dark`-prefixed rules override for DARK mode and reproduce
+      //   the original look exactly. WhatsApp Web sets the `dark` class on
+      //   <body> when dark theme is active, so this auto-switches without
+      //   a page reload.
       style.innerHTML = `
-/* Chat container (leichtes Glass-Design) */
+/* ── Chat list rows (light mode default) ── */
 #pane-side [role="row"] > div {
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(255, 255, 255, 0.6);
     border-radius: 10px;
     transition: background 0.15s ease;
 }
-
-/* Hover */
 #pane-side [role="row"]:hover > div {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.05);
 }
-
-/* Aktiver Chat */
 #pane-side [aria-selected="true"] > div {
-    background: rgba(255, 255, 255, 0.2) !important;
+    background: rgba(0, 0, 0, 0.08) !important;
 }
-
-/* Name */
 #pane-side span[title] {
-    color: white !important;
+    color: #111b21 !important;
     font-weight: 500 !important;
 }
-
-/* Vorschau */
 #pane-side span[dir="auto"] {
-    color: rgba(255,255,255,0.8) !important;
+    color: rgba(17, 27, 33, 0.65) !important;
     font-weight: 400 !important;
+}
+
+/* ── Dark-mode overrides (original look preserved) ── */
+body.dark #pane-side [role="row"] > div {
+    background: rgba(0, 0, 0, 0.25);
+}
+body.dark #pane-side [role="row"]:hover > div {
+    background: rgba(255, 255, 255, 0.1);
+}
+body.dark #pane-side [aria-selected="true"] > div {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+body.dark #pane-side span[title] {
+    color: #ffffff !important;
+}
+body.dark #pane-side span[dir="auto"] {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Chat-view header text — only force white in dark mode. Replaces the
+   former unconditional inline assignment that left the contact name
+   invisible against the native light header. */
+body.dark div#main > header {
+    color: #ffffff !important;
 }
 `;
       // Lade gespeicherte Bilder
@@ -167,15 +189,12 @@ function customThemes() {
         }
       });
     }
-    console.log("Making header transparent");
-    // Select the header
+    // Header colour is now handled by `body.dark div#main > header` in the
+    // wa-chat-style block above, so light mode keeps WhatsApp's native dark
+    // text and stays readable. The transparent background stays as-is so
+    // the chat-view background image (when set) shows through.
     const header = document.querySelector("div#main > header");
-
     if (header) {
-      // Set the text color to white (important)
-      header.style.setProperty("color", "white", "important");
-
-      // Make the background transparent without affecting children
       header.style.background = "none";
     }
   }, 500);
