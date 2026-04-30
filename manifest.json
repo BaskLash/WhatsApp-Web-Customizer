@@ -21,7 +21,6 @@
     {
       "matches": ["https://web.whatsapp.com/"],
       "js": [
-        "changeColor.js",
         "fontFamilyChange.js",
         "changeContent.js",
         "quick-reply-bubbles.js",

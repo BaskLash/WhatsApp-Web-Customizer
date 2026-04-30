@@ -75,47 +75,6 @@ checkboxIds.forEach((id) => {
 
 loadOptions();
 
-// ── Color Selection ───────────────────────────────────────────────────────────
-const colorInInput  = document.getElementById("colorIn");
-const colorOutInput = document.getElementById("colorOut");
-
-// Load saved colors into the pickers on popup open
-chrome.storage.local.get(["colorIn", "colorOut"], (result) => {
-  if (result.colorIn)  colorInInput.value  = result.colorIn;
-  if (result.colorOut) colorOutInput.value = result.colorOut;
-});
-
-// Save whenever the user picks a new color — changeColor.js reacts via onChanged
-colorInInput.addEventListener("input", (e) => {
-  chrome.storage.local.set({ colorIn: e.target.value });
-});
-colorOutInput.addEventListener("input", (e) => {
-  chrome.storage.local.set({ colorOut: e.target.value });
-});
-
-// Preset buttons — each sets both channels to a themed pair
-document.getElementById("discoButton").addEventListener("click", () => {
-  chrome.storage.local.set({ colorIn: "#ff00ff", colorOut: "#00ffff" }, () => {
-    colorInInput.value  = "#ff00ff";
-    colorOutInput.value = "#00ffff";
-  });
-});
-
-document.getElementById("discoButton2").addEventListener("click", () => {
-  chrome.storage.local.set({ colorIn: "#ff0000", colorOut: "#00ff00" }, () => {
-    colorInInput.value  = "#ff0000";
-    colorOutInput.value = "#00ff00";
-  });
-});
-
-document.getElementById("discoButton3").addEventListener("click", () => {
-  // Reset to defaults
-  chrome.storage.local.set({ colorIn: "#00aaff", colorOut: "#00ff88" }, () => {
-    colorInInput.value  = "#00aaff";
-    colorOutInput.value = "#00ff88";
-  });
-});
-
 // ── Light Font & Privacy Mode toggles ────────────────────────────────────────
 ["privacyMode"].forEach((key) => {
   const cb = document.getElementById(key);

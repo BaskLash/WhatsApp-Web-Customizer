@@ -1,4 +1,10 @@
+// This file is loaded as both a popup script (where #fontSelector exists)
+// and a content script on web.whatsapp.com (where it does not). The guard
+// below makes the content-script load a no-op so we don't TypeError on
+// `null.addEventListener`. Font injection on WhatsApp Web is handled by
+// content.js's applyFont path, so this file simply has nothing to do there.
 const fontSelector = document.getElementById("fontSelector");
+if (fontSelector) {
 let styleTag = null;
 let fontLink = null;
 
@@ -58,3 +64,4 @@ chrome.storage.local.get(["fontStyle"], (result) => {
   fontSelector.value = savedFont; // Vorauswahl setzen
   applyFont(savedFont); // Direkt anwenden
 });
+}

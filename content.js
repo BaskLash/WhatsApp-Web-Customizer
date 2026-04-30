@@ -2,10 +2,19 @@
 function initBurgerMenu() {
   // Selektoren als Strings speichern
   const containerSelector = ".x1c4vz4f.xs83m0k.xdl72j9.x1g77sc7.x78zum5.xozqiw3.x1oa3qoh.x12fk4p8.xeuugli.x2lwn1j.x1nhvcw1.xdt5ytf.x1cy8zhl.x1277o0a";
-  const homeChatHeaderSelector = "div[class] > header:first-child";
-
-  // Hilfsfunktion: Findet das Div, das den Header enthält
-  const getHomeChatElement = () => document.querySelector(homeChatHeaderSelector)?.parentElement;
+  // The chat-list home wrapper is identified by the unique
+  // <header data-testid="chatlist-header"> that carries solely that one
+  // attribute (attributes.length === 1). Its parentElement is the pane the
+  // burger button toggles between display:none and display:block.
+  const getHomeChatElement = () => {
+    const headers = document.querySelectorAll(
+      'header[data-testid="chatlist-header"]'
+    );
+    const exact = [...headers].find(
+      (h) => h.attributes.length === 1 && h.hasAttribute("data-testid")
+    );
+    return exact?.parentElement || null;
+  };
 
   function tryInit() {
     const container = document.querySelector(containerSelector);
@@ -31,10 +40,13 @@ function initBurgerMenu() {
     `;
     document.head.appendChild(style);
 
-    // Storage Funktionen
+    // Returns the saved value or null. Never falls back to a default — the
+    // previous "|| 'block'" default forced display:block onto whatever
+    // ancestor the selector matched, which breaks WhatsApp's flex layout on
+    // first load when nothing was ever toggled.
     const getSavedDisplayState = (key) => {
       return new Promise((resolve) => {
-        chrome.storage.local.get([key], (result) => resolve(result[key] || "block"));
+        chrome.storage.local.get([key], (result) => resolve(result[key] ?? null));
       });
     };
 
@@ -42,25 +54,29 @@ function initBurgerMenu() {
       chrome.storage.local.set({ [key]: value });
     };
 
-    // Toggle Logik
+    // Hide → display:none, show → display:block. Block is the parent's
+    // natural display value for the chatlist-header wrapper, so restoring
+    // to "block" reproduces the manually-tested DevTools behavior.
     const toggleDisplay = (element, homeChatElement, key) => {
       if (!element) return;
-      const currentDisplay = window.getComputedStyle(element).display;
-      const newDisplay = currentDisplay === "none" ? "block" : "none";
-      
+      const isHidden = window.getComputedStyle(element).display === "none";
+      const newDisplay = isHidden ? "block" : "none";
+
       element.style.display = newDisplay;
-      if (homeChatElement) homeChatElement.style.display = newDisplay;
+      if (homeChatElement && homeChatElement !== element) {
+        homeChatElement.style.display = newDisplay;
+      }
       saveDisplayState(key, newDisplay);
     };
 
-    // Zustand anwenden
+    // Only act when the user has explicitly toggled before — otherwise leave
+    // WhatsApp's natural layout untouched on first load.
     const applySavedState = async (elementSelector, storageKey, isHomeChat = false) => {
       const savedState = await getSavedDisplayState(storageKey);
+      if (savedState == null) return;
       const element = isHomeChat ? getHomeChatElement() : document.querySelector(elementSelector);
-      
-      if (element) {
-        element.style.display = savedState;
-      }
+      if (!element) return;
+      element.style.display = savedState === "none" ? "none" : "block";
     };
 
     // Click Event
@@ -92,7 +108,7 @@ function initBurgerMenu() {
       }
     };
 
-    setupNavButton("button[aria-label='Chats']", homeChatHeaderSelector, "chatsDisplay", true);
+    setupNavButton("button[aria-label='Chats']", null, "chatsDisplay", true);
     setupNavButton("button[aria-label='Status']", "div[aria-label='Status tab drawer']", "statusDisplay");
     setupNavButton("button[aria-label='Channels']", "div[aria-label='Channel tab drawer']", "channelsDisplay");
     setupNavButton("button[aria-label='Communities']", "div[aria-label='Community tab drawer']", "communitiesDisplay");
@@ -101,7 +117,7 @@ function initBurgerMenu() {
 
     // Initialen Zustand laden
     const initStates = async () => {
-      await applySavedState(homeChatHeaderSelector, "chatsDisplay", true);
+      await applySavedState(null, "chatsDisplay", true);
       await applySavedState("div[aria-label='Status tab drawer']", "statusDisplay");
       await applySavedState("div[aria-label='Channel tab drawer']", "channelsDisplay");
       await applySavedState("div[aria-label='Community tab drawer']", "communitiesDisplay");
@@ -190,11 +206,19 @@ function runAll() {
   }, 1000);
 }
 
-// Starte, wenn die Seite geladen ist
-document.addEventListener("DOMContentLoaded", runAll);
-window.addEventListener("load", runAll);
+// Starte, wenn die Seite geladen ist. The three triggers below all race the
+// same init; guard so runAll executes exactly once regardless of which fires
+// first. Avoids stacking multiple MutationObservers + polling intervals.
+let runAllStarted = false;
+function startOnce() {
+  if (runAllStarted) return;
+  runAllStarted = true;
+  runAll();
+}
+document.addEventListener("DOMContentLoaded", startOnce);
+window.addEventListener("load", startOnce);
 window.addEventListener("load", customThemes);
-setTimeout(runAll, 3000); // Fallback für verzögertes Laden
+setTimeout(startOnce, 3000); // Fallback für verzögertes Laden
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "applyVisibilityFromPopup") {
