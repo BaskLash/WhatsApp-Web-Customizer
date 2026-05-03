@@ -119,7 +119,9 @@ function insertQuickReplyBubbles() {
   footer.insertBefore(container, footer.firstChild);
 
   chrome.storage.local.get(["quickReplies"], (result) => {
-    const replies = (result.quickReplies && result.quickReplies.length > 0)
+    // Key present (even as []) = user has explicitly chosen what's shown.
+    // Defaults are only for first-time users who've never saved.
+    const replies = Array.isArray(result.quickReplies)
       ? result.quickReplies
       : defaultReplies;
     buildBubbles(container, replies, footer);
@@ -138,7 +140,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
   container.innerHTML = "";
 
-  const replies = (changes.quickReplies.newValue && changes.quickReplies.newValue.length > 0)
+  const replies = Array.isArray(changes.quickReplies.newValue)
     ? changes.quickReplies.newValue
     : defaultReplies;
   buildBubbles(container, replies, footer);

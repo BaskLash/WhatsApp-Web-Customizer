@@ -33,6 +33,14 @@ function renderList() {
   const list = document.getElementById("qr-list");
   list.innerHTML = "";
 
+  if (currentReplies.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "qr-empty text-secondary small fst-italic px-1 py-2";
+    empty.textContent = "No quick replies. Add one above to get started.";
+    list.appendChild(empty);
+    return;
+  }
+
   currentReplies.forEach((text, index) => {
     const item = document.createElement("div");
     item.className = "qr-item";
@@ -110,9 +118,10 @@ function startEdit(index, item, textSpan) {
 
 document.addEventListener("DOMContentLoaded", () => {
   chrome.storage.local.get([QR_STORAGE_KEY], (result) => {
-    currentReplies = (result[QR_STORAGE_KEY] && result[QR_STORAGE_KEY].length > 0)
-      ? result[QR_STORAGE_KEY]
-      : QR_DEFAULTS.slice();
+    const stored = result[QR_STORAGE_KEY];
+    // Key present (even as []) means the user has touched the list — respect it.
+    // Only fall back to defaults when nothing has ever been saved.
+    currentReplies = Array.isArray(stored) ? stored : QR_DEFAULTS.slice();
     renderList();
   });
 
