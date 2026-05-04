@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>WhatsApp Customizer – Theme Manager</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --bg-color: #1a1b26;
+                --text-color: #e0e0e0;
+                --muted-color: #a0a0a0;
+                --accent-color: #10b981;
+                --accent-hover: #34d399;
+                --danger-color: #dc2626;
+                --danger-hover: #ef4444;
+                --border-color: #2d2e3b;
+                --card-bg: #242530;
+                --card-bg-elevated: #2d2e3b;
+                --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                --glow: 0 0 8px rgba(16, 185, 129, 0.3);
+            }
+
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+
+            body {
+                font-family: "Inter", sans-serif;
+                background-color: var(--bg-color);
+                color: var(--text-color);
+                min-height: 100vh;
+                padding: 24px;
+            }
+
+            .page { max-width: 1200px; margin: 0 auto; }
+
+            header.page-header {
+                display: flex; align-items: center; justify-content: space-between;
+                margin-bottom: 24px; padding-bottom: 16px;
+                border-bottom: 1px solid var(--border-color);
+            }
+            header.page-header h1 { font-size: 22px; font-weight: 600; }
+            header.page-header .subtitle { color: var(--muted-color); font-size: 13px; margin-top: 4px; }
+
+            .panels {
+                display: grid; grid-template-columns: 1fr 1fr;
+                gap: 16px; margin-bottom: 24px;
+            }
+            @media (max-width: 780px) { .panels { grid-template-columns: 1fr; } }
+
+            .panel {
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 10px; padding: 18px;
+            }
+            .panel h2 {
+                font-size: 13px; font-weight: 600; text-transform: uppercase;
+                letter-spacing: 0.6px; color: var(--muted-color); margin-bottom: 12px;
+            }
+
+            .drop-zone {
+                border: 2px dashed var(--border-color);
+                border-radius: 8px; padding: 28px 16px; text-align: center;
+                cursor: pointer; color: var(--muted-color); font-size: 14px;
+                transition: border-color 0.2s ease, background 0.2s ease;
+            }
+            .drop-zone:hover, .drop-zone.dragover {
+                border-color: var(--accent-color);
+                background: rgba(16, 185, 129, 0.06);
+                color: var(--text-color);
+            }
+            .drop-zone strong { color: var(--accent-color); }
+            .drop-hint { margin-top: 8px; font-size: 12px; color: var(--muted-color); }
+
+            .url-row { display: flex; gap: 8px; }
+            .url-row input[type="url"] {
+                flex: 1; background: var(--bg-color);
+                border: 1px solid var(--border-color); border-radius: 6px;
+                color: var(--text-color); font-size: 14px; padding: 10px 12px;
+                outline: none; transition: border-color 0.2s;
+            }
+            .url-row input[type="url"]:focus { border-color: var(--accent-color); }
+
+            button.primary, button.secondary {
+                padding: 10px 16px; border: none; border-radius: 6px;
+                font-size: 14px; font-weight: 500; cursor: pointer;
+                white-space: nowrap;
+                transition: background 0.2s ease, box-shadow 0.2s ease;
+            }
+            button.primary { background: var(--accent-color); color: #fff; }
+            button.primary:hover:not(:disabled) {
+                background: var(--accent-hover); box-shadow: var(--glow);
+            }
+            button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+            button.secondary {
+                background: var(--card-bg-elevated);
+                color: var(--text-color);
+                border: 1px solid var(--border-color);
+            }
+            button.secondary:hover { border-color: var(--accent-color); }
+
+            .status-line { margin-top: 10px; font-size: 13px; min-height: 18px; }
+            .status-line.info { color: var(--muted-color); }
+            .status-line.success { color: var(--accent-color); }
+            .status-line.error { color: var(--danger-hover); }
+
+            .library {
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 10px; padding: 18px; margin-bottom: 24px;
+            }
+            .library-header {
+                display: flex; align-items: center; justify-content: space-between;
+                flex-wrap: wrap; gap: 12px; margin-bottom: 16px;
+            }
+            .library-header h2 {
+                font-size: 13px; font-weight: 600; text-transform: uppercase;
+                letter-spacing: 0.6px; color: var(--muted-color);
+            }
+            .library-count { font-size: 12px; color: var(--muted-color); }
+
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+                gap: 12px;
+            }
+            .grid-empty {
+                grid-column: 1 / -1; text-align: center;
+                padding: 40px 20px; color: var(--muted-color); font-size: 14px;
+            }
+
+            .theme-card {
+                position: relative;
+                background: var(--card-bg-elevated);
+                border: 2px solid var(--border-color);
+                border-radius: 10px; overflow: hidden;
+                transition: border-color 0.2s ease, box-shadow 0.2s ease;
+                cursor: pointer;
+            }
+            .theme-card:hover {
+                border-color: var(--accent-color);
+                box-shadow: var(--glow);
+            }
+            .theme-card.active {
+                border-color: var(--accent-color);
+                box-shadow: var(--glow);
+            }
+            .theme-card .swatch {
+                aspect-ratio: 16 / 9;
+                background: #222;
+            }
+            .theme-card .meta {
+                padding: 10px 12px;
+                display: flex; align-items: center; justify-content: space-between;
+                gap: 8px;
+            }
+            .theme-card .meta-name { font-weight: 600; font-size: 14px; }
+            .theme-card .meta-author { font-size: 11px; color: var(--muted-color); margin-top: 2px; }
+            .theme-card .badge {
+                font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+                padding: 2px 6px; border-radius: 4px;
+                background: rgba(0,0,0,0.5); color: #fff;
+            }
+            .theme-card .badge.preset { background: rgba(16,185,129,0.8); }
+            .theme-card .badge.custom { background: rgba(59,130,246,0.8); }
+            .theme-card .actions {
+                position: absolute; top: 8px; right: 8px;
+                display: flex; gap: 4px;
+                opacity: 0; transition: opacity 0.2s ease;
+            }
+            .theme-card:hover .actions { opacity: 1; }
+            .theme-card .actions button {
+                width: 28px; height: 28px;
+                display: flex; align-items: center; justify-content: center;
+                border: none; border-radius: 50%;
+                background: rgba(0,0,0,0.7); color: #fff;
+                font-size: 14px; cursor: pointer;
+                transition: background 0.2s ease, transform 0.2s ease;
+            }
+            .theme-card .actions button:hover { transform: scale(1.1); }
+            .theme-card .actions button.delete:hover { background: var(--danger-color); }
+            .theme-card .actions button.export:hover { background: var(--accent-color); }
+            .theme-card.active::after {
+                content: "ACTIVE";
+                position: absolute; bottom: 8px; right: 8px;
+                font-size: 9px; font-weight: 700; letter-spacing: 1px;
+                padding: 3px 7px; border-radius: 4px;
+                background: var(--accent-color); color: #fff;
+            }
+
+            .toast {
+                position: fixed; bottom: 24px; left: 50%;
+                transform: translateX(-50%) translateY(20px);
+                background: var(--card-bg-elevated);
+                color: var(--text-color);
+                padding: 12px 18px; border-radius: 8px;
+                border: 1px solid var(--border-color);
+                box-shadow: var(--shadow); font-size: 14px;
+                opacity: 0; pointer-events: none;
+                transition: opacity 0.25s ease, transform 0.25s ease;
+                z-index: 100;
+            }
+            .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+            .toast.success { border-color: var(--accent-color); }
+            .toast.error { border-color: var(--danger-color); }
+        </style>
+    </head>
+
+    <body>
+        <div class="page">
+            <header class="page-header">
+                <div>
+                    <h1>Theme Manager</h1>
+                    <div class="subtitle">
+                        Import, manage, and switch between custom WhatsApp Web themes.
+                    </div>
+                </div>
+            </header>
+
+            <div class="panels">
+                <div class="panel">
+                    <h2>Import from File</h2>
+                    <div class="drop-zone" id="drop-zone" tabindex="0">
+                        <div>Drop a theme JSON file here or <strong>click to browse</strong></div>
+                        <div class="drop-hint">Single theme or array of themes — up to 1 MB</div>
+                    </div>
+                    <input type="file" id="file-input" accept="application/json,.json" multiple style="display: none" />
+                    <div class="status-line info" id="upload-status"></div>
+                </div>
+
+                <div class="panel">
+                    <h2>Import from URL</h2>
+                    <div class="url-row">
+                        <input type="url" id="url-input" placeholder="https://example.com/theme.json" />
+                        <button class="primary" id="url-add-btn">Fetch</button>
+                    </div>
+                    <div class="status-line info" id="url-status"></div>
+                </div>
+            </div>
+
+            <section class="library">
+                <div class="library-header">
+                    <div>
+                        <h2>Preset Themes</h2>
+                        <div class="library-count">Built-in — non-deletable</div>
+                    </div>
+                </div>
+                <div class="grid" id="presets-grid"></div>
+            </section>
+
+            <section class="library">
+                <div class="library-header">
+                    <div>
+                        <h2>Custom Themes</h2>
+                        <div class="library-count" id="custom-count"></div>
+                    </div>
+                    <button class="secondary" id="export-all-btn">Export All</button>
+                </div>
+                <div class="grid" id="customs-grid"></div>
+            </section>
+        </div>
+
+        <div class="toast" id="toast"></div>
+
+        <script src="themes-presets.js" defer></script>
+        <script src="themes-manage.js" defer></script>
+    </body>
+</html>

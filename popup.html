@@ -26,6 +26,8 @@
         <script src="fontSizeChange.js" defer></script>
         <script src="imageSelection.js" defer></script>
         <script src="quick-replies.js" defer></script>
+        <script src="themes-presets.js" defer></script>
+        <script src="themes.js" defer></script>
 
         <style>
             /* ---- Theme tokens ---- */
@@ -325,6 +327,64 @@
             .collapse:not(.show) {
                 display: none;
             }
+
+            /* ---- Theme picker cards (Themes tab) ---- */
+            .theme-card {
+                position: relative;
+                background: var(--wa-surface);
+                border: 2px solid var(--wa-border);
+                border-radius: 10px;
+                cursor: pointer;
+                overflow: hidden;
+                transition: border-color 0.2s ease, box-shadow 0.2s ease,
+                    transform 0.15s ease;
+            }
+            .theme-card:hover,
+            .theme-card:focus-visible {
+                border-color: var(--wa-accent);
+                box-shadow: var(--wa-glow);
+                transform: translateY(-1px);
+                outline: none;
+            }
+            .theme-card.active {
+                border-color: var(--wa-accent);
+                box-shadow: var(--wa-glow);
+            }
+            .theme-card.active::after {
+                content: "ACTIVE";
+                position: absolute;
+                top: 6px;
+                right: 6px;
+                font-size: 9px;
+                font-weight: 700;
+                letter-spacing: 1px;
+                padding: 2px 6px;
+                border-radius: 4px;
+                background: var(--wa-accent);
+                color: #fff;
+            }
+            .theme-swatch {
+                width: 100%;
+                aspect-ratio: 16 / 9;
+                background: #222;
+            }
+            .theme-label {
+                padding: 8px 10px 4px;
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--wa-text);
+            }
+            .theme-tag {
+                display: inline-block;
+                margin: 0 10px 8px;
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                padding: 1px 6px;
+                border-radius: 4px;
+                background: var(--wa-surface-2);
+                color: var(--wa-muted);
+            }
         </style>
     </head>
 
@@ -353,6 +413,7 @@
             >
                 <a class="nav-link active" data-tab="tab-display" href="#">Display</a>
                 <a class="nav-link" data-tab="tab-backgrounds" href="#">Backgrounds</a>
+                <a class="nav-link" data-tab="tab-themes" href="#">Themes</a>
                 <a class="nav-link" data-tab="tab-typography" href="#">Typography</a>
                 <a class="nav-link" data-tab="tab-replies" href="#">Quick Replies</a>
                 <a class="nav-link" data-tab="tab-about" href="#">About</a>
@@ -557,6 +618,29 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </section>
+
+                    <!-- ─────── THEMES ─────── -->
+                    <section class="tab-pane fade" id="tab-themes">
+                        <h2 class="section-label mb-2">Preset themes</h2>
+                        <p class="text-secondary small mb-3">
+                            Click any preset to apply it instantly to WhatsApp Web.
+                        </p>
+                        <div class="row g-2" id="theme-presets-grid"></div>
+
+                        <div id="theme-customs-wrap" style="display: none">
+                            <h2 class="section-label mt-4 mb-2">Your custom themes</h2>
+                            <div class="row g-2" id="theme-customs-grid"></div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button id="open-theme-manager" type="button" class="btn btn-success flex-grow-1">
+                                Manage Items
+                            </button>
+                            <button id="reset-theme" type="button" class="btn btn-outline-secondary">
+                                Reset
+                            </button>
                         </div>
                     </section>
 
