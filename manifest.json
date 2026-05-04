@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "WhatsApp Web Customizer – Themes, Fonts, Backgrounds & Quick Reply Bubbles",
-  "version": "1.0.16",
+  "version": "1.1.0",
   "description": "Personalize WhatsApp Web with themes, fonts, backgrounds, and fast-reply tools. Lightweight, clean, and fully open source.",
-  "permissions": ["storage", "scripting", "clipboardRead"],
+  "permissions": ["storage", "scripting", "clipboardRead", "alarms"],
   "optional_host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "popup.html",
@@ -11,6 +11,10 @@
   },
   "background": {
     "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
   },
   "icons": {
     "16": "icon/icon16.png",
@@ -21,6 +25,7 @@
     {
       "matches": ["https://web.whatsapp.com/"],
       "js": [
+        "track.js",
         "fontFamilyChange.js",
         "changeContent.js",
         "quick-reply-bubbles.js",
@@ -31,7 +36,10 @@
       "run_at": "document_idle"
     }
   ],
-  "host_permissions": ["https://web.whatsapp.com/"],
+  "host_permissions": [
+    "https://web.whatsapp.com/",
+    "https://eu.i.posthog.com/*"
+  ],
   "web_accessible_resources": [
     {
       "resources": ["themes-overrides.css"],

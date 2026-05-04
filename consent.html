@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WhatsApp Customizer — Anonymous Usage Stats</title>
+
+    <!-- Same theme tokens as popup.html for visual consistency. -->
+    <style>
+      :root {
+        --wa-bg: #1a1b26;
+        --wa-surface: #242530;
+        --wa-surface-2: #2d2e3b;
+        --wa-border: #2d2e3b;
+        --wa-text: #e0e0e0;
+        --wa-muted: #a0a0a0;
+        --wa-accent: #10b981;
+        --wa-accent-hover: #34d399;
+        --wa-warn: #ef4444;
+        --wa-glow: 0 0 8px rgba(16, 185, 129, 0.3);
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--wa-bg);
+        color: var(--wa-text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Inter", sans-serif;
+        line-height: 1.55;
+        font-size: 15px;
+      }
+
+      .wrap {
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 24px 60px;
+      }
+
+      h1 {
+        font-size: 24px;
+        margin: 0 0 8px;
+        font-weight: 700;
+      }
+
+      h2 {
+        font-size: 16px;
+        margin: 24px 0 8px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--wa-muted);
+      }
+
+      p { margin: 0 0 12px; color: var(--wa-text); }
+      .sub { color: var(--wa-muted); font-size: 14px; }
+
+      .card {
+        background: var(--wa-surface);
+        border: 1px solid var(--wa-border);
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin: 12px 0;
+      }
+
+      /* The "what is NEVER collected" panel — visually loud on purpose.
+         This is the part users will scan; make sure it survives a glance. */
+      .never {
+        border: 2px solid var(--wa-accent);
+        background: rgba(16, 185, 129, 0.08);
+        box-shadow: var(--wa-glow);
+      }
+
+      .never h2 { color: var(--wa-accent); }
+
+      .never ul { margin: 4px 0 0; padding-left: 22px; }
+      .never li { margin-bottom: 4px; }
+
+      ul.collect-list {
+        margin: 4px 0 0;
+        padding-left: 22px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 32px;
+      }
+
+      button {
+        flex: 1;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--wa-border);
+        background: var(--wa-surface);
+        color: var(--wa-text);
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease,
+          transform 0.05s ease;
+      }
+      button:hover { border-color: var(--wa-muted); }
+      button:active { transform: translateY(1px); }
+
+      button.primary {
+        background: var(--wa-accent);
+        border-color: var(--wa-accent);
+        color: #fff;
+      }
+      button.primary:hover { background: var(--wa-accent-hover); border-color: var(--wa-accent-hover); }
+
+      a {
+        color: var(--wa-accent);
+        text-decoration: none;
+      }
+      a:hover { text-decoration: underline; }
+
+      .footer-note {
+        margin-top: 28px;
+        font-size: 13px;
+        color: var(--wa-muted);
+      }
+
+      .badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        background: var(--wa-accent);
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 999px;
+        margin-bottom: 8px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <span class="badge">One-time setup</span>
+      <h1>Help improve WhatsApp Customizer?</h1>
+      <p class="sub">
+        We'd like to collect anonymous usage statistics so we can see which
+        features are useful and which to retire. This is opt-in, fully
+        revocable, and processed in the EU.
+      </p>
+
+      <!-- The reassurance panel — read this first, even if nothing else. -->
+      <div class="card never">
+        <h2>What is NEVER collected</h2>
+        <ul>
+          <li>Your messages or any conversation content</li>
+          <li>Contact names, phone numbers, or profile pictures</li>
+          <li>Group names, group descriptions, or member lists</li>
+          <li>Anything you type inside WhatsApp Web</li>
+          <li>Search queries, chat titles, or media you send/receive</li>
+        </ul>
+        <p class="sub" style="margin-top: 12px; margin-bottom: 0;">
+          This extension never reads the text on your screen for analytics.
+          The only data we capture is which buttons you click in the
+          extension itself.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>What is collected (only with your consent)</h2>
+        <ul class="collect-list">
+          <li>Which customization features you use (e.g. "theme applied", "quick reply added")</li>
+          <li>Counts and categorical values (e.g. how many quick replies exist, which preset theme was chosen)</li>
+          <li>Extension version and your browser language</li>
+          <li>An anonymous random ID generated on your device — not linked to any account</li>
+          <li>Errors that occur inside the extension</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Where it goes</h2>
+        <p>
+          Events are sent to <strong>PostHog</strong> on EU servers
+          (<code>eu.i.posthog.com</code>) over HTTPS. Nothing else receives
+          this data.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>Other network activity (unrelated to analytics)</h2>
+        <p class="sub">
+          For full transparency, here's what the extension already does on
+          the network — neither of these is analytics, and both happen
+          regardless of your choice below:
+        </p>
+        <ul class="collect-list">
+          <li>
+            <strong>Google Fonts.</strong> When you select a font from the
+            Typography tab, the corresponding Google Fonts stylesheet is
+            loaded directly from Google's servers. This is required for the
+            font to render.
+          </li>
+          <li>
+            <strong>User-pasted image URLs.</strong> When you import a
+            background image by URL, the extension fetches that URL directly
+            from your browser. Only the URL you provide is contacted.
+          </li>
+        </ul>
+      </div>
+
+      <p class="sub" style="margin-top: 16px;">
+        You can change your choice any time from the extension's settings
+        page. Read the
+        <!-- TODO: replace before publishing -->
+        <a id="privacy-link" href="https://github.com/BaskLash/LongDL/blob/main/privacy-policy" target="_blank" rel="noopener">privacy policy</a>
+        for more.
+      </p>
+
+      <div class="actions">
+        <button id="decline">Decline</button>
+        <button id="accept" class="primary">Share anonymous data</button>
+      </div>
+
+      <p class="footer-note">
+        Either choice closes this tab. Declining is the default — no events
+        are sent until you opt in.
+      </p>
+    </div>
+
+    <script src="track.js"></script>
+    <script src="consent.js"></script>
+  </body>
+</html>

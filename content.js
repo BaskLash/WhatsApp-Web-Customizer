@@ -82,19 +82,48 @@ function initBurgerMenu() {
     // Click Event
     burgerButton.addEventListener("click", async () => {
       const homeChatElement = getHomeChatElement();
-      
+
       const statusActive = document.querySelector("button[aria-label='Status'][aria-pressed='true']");
       const channelsActive = document.querySelector("button[aria-label='Channels'][aria-pressed='true']");
       const communitiesActive = document.querySelector("button[aria-label='Communities'][aria-pressed='true']");
 
+      // Resolve the target pane first so we can fire a single state-change
+      // event after the toggle. The four panes map to fixed enum values for
+      // analytics — no DOM text, just structural identifiers.
+      let pane, targetEl, storageKey;
       if (statusActive) {
-        toggleDisplay(document.querySelector("div[aria-label='Status tab drawer']"), homeChatElement, "statusDisplay");
+        pane = "status";
+        targetEl = document.querySelector("div[aria-label='Status tab drawer']");
+        storageKey = "statusDisplay";
       } else if (channelsActive) {
-        toggleDisplay(document.querySelector("div[aria-label='Channel tab drawer']"), homeChatElement, "channelsDisplay");
+        pane = "channels";
+        targetEl = document.querySelector("div[aria-label='Channel tab drawer']");
+        storageKey = "channelsDisplay";
       } else if (communitiesActive) {
-        toggleDisplay(document.querySelector("div[aria-label='Community tab drawer']"), homeChatElement, "communitiesDisplay");
+        pane = "communities";
+        targetEl = document.querySelector("div[aria-label='Community tab drawer']");
+        storageKey = "communitiesDisplay";
       } else {
-        toggleDisplay(homeChatElement, homeChatElement, "chatsDisplay");
+        pane = "chats";
+        targetEl = homeChatElement;
+        storageKey = "chatsDisplay";
+      }
+
+      if (!targetEl) return; // No element found → toggleDisplay is a no-op.
+
+      const wasHidden = window.getComputedStyle(targetEl).display === "none";
+      toggleDisplay(targetEl, homeChatElement, storageKey);
+      const nowHidden = window.getComputedStyle(targetEl).display === "none";
+
+      if (wasHidden !== nowHidden) {
+        try {
+          if (window.track) {
+            window.track("burger_menu_toggled", {
+              pane,
+              now_visible: !nowHidden,
+            });
+          }
+        } catch (e) { /* analytics must never break WhatsApp */ }
       }
     });
 
@@ -214,6 +243,11 @@ function startOnce() {
   if (runAllStarted) return;
   runAllStarted = true;
   runAll();
+  // Fires exactly once per WhatsApp Web load. No props — we only need to
+  // know the user has the extension active on the page.
+  try {
+    if (window.track) window.track("whatsapp_web_loaded");
+  } catch (e) { /* analytics must never break WhatsApp */ }
 }
 document.addEventListener("DOMContentLoaded", startOnce);
 window.addEventListener("load", startOnce);

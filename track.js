@@ -1,0 +1,63 @@
+// track.js — page-side helper for popup, options, and content scripts.
+//
+// Why a thin wrapper:
+//   - All real work lives in the service worker (analytics.js). This file
+//     just forwards events via chrome.runtime.sendMessage so the API key,
+//     queue, and network traffic stay out of any page-side context.
+//   - Defensive: every entry point is wrapped so a torn-down extension
+//     context (e.g. during reload or update) never breaks WhatsApp itself.
+//   - Content scripts run in an isolated world, so attaching to `window`
+//     here does NOT expose anything to web.whatsapp.com's own JS.
+
+(function () {
+  function track(eventName, properties) {
+    try {
+      // sendMessage with no listener throws when the SW is gone. We swallow
+      // it — analytics must never affect the user-facing feature.
+      chrome.runtime.sendMessage({
+        type: "analytics:capture",
+        event: eventName,
+        properties: properties || {},
+      });
+    } catch (err) {
+      // Intentionally silent.
+    }
+  }
+
+  function setConsent(value) {
+    try {
+      return chrome.runtime.sendMessage({ type: "analytics:setConsent", value });
+    } catch (err) {
+      return Promise.resolve(null);
+    }
+  }
+
+  function getConsent() {
+    try {
+      return chrome.runtime
+        .sendMessage({ type: "analytics:getConsent" })
+        .then((res) => (res && res.value) || null)
+        .catch(() => null);
+    } catch (err) {
+      return Promise.resolve(null);
+    }
+  }
+
+  function getDistinctId() {
+    try {
+      return chrome.runtime
+        .sendMessage({ type: "analytics:getDistinctId" })
+        .then((res) => (res && res.value) || null)
+        .catch(() => null);
+    } catch (err) {
+      return Promise.resolve(null);
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    window.track = track;
+    window.setAnalyticsConsent = setConsent;
+    window.getAnalyticsConsent = getConsent;
+    window.getAnalyticsDistinctId = getDistinctId;
+  }
+})();

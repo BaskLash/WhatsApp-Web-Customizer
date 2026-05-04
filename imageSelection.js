@@ -56,6 +56,9 @@ function setPreview(slot, src) {
 }
 
 function openManagePage() {
+  try {
+    if (window.track) window.track("image_manager_opened");
+  } catch (e) { /* ignore */ }
   const url = chrome.runtime.getURL("manage-images.html");
   if (chrome.tabs && chrome.tabs.create) {
     chrome.tabs.create({ url });
@@ -404,6 +407,15 @@ modalSaveBtn.addEventListener("click", async () => {
       chrome.storage.local.set({ [slot]: dataUrl }, resolve),
     );
     setPreview(slot, dataUrl);
+    // Analytics: slot is the fixed enum (welcome/navside/sidenav/chatview).
+    // `source` is derived structurally from the library — we never look at
+    // the URL or filename itself.
+    try {
+      if (window.track) {
+        const source = isUserImage(src) ? "uploaded" : "predefined";
+        window.track("background_slot_set", { slot, source });
+      }
+    } catch (e) { /* ignore */ }
     closeModal();
   } catch (err) {
     console.error("Failed to save image:", err);
@@ -420,8 +432,12 @@ modalSaveBtn.addEventListener("click", async () => {
 
 document.getElementById("modal-none").addEventListener("click", () => {
   if (currentType) {
-    chrome.storage.local.remove(currentType);
-    setPreview(currentType, null);
+    const slot = currentType;
+    chrome.storage.local.remove(slot);
+    setPreview(slot, null);
+    try {
+      if (window.track) window.track("background_slot_cleared", { slot });
+    } catch (e) { /* ignore */ }
   }
   closeModal();
 });

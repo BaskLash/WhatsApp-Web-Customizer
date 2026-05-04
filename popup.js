@@ -22,7 +22,7 @@ function loadOptions() {
   });
 }
 
-function saveAndApplyOptions() {
+function saveAndApplyOptions(changedId) {
   const options = {};
   checkboxIds.forEach((id) => {
     options[id] = document.getElementById(id).checked;
@@ -38,6 +38,17 @@ function saveAndApplyOptions() {
       });
     });
   });
+
+  // Analytics: only the setting name (fixed enum) and the new boolean value.
+  // No DOM text, no chat data — checkbox IDs are part of the extension.
+  if (changedId) {
+    try {
+      window.track("visibility_setting_changed", {
+        setting: changedId,
+        enabled: !!options[changedId],
+      });
+    } catch (e) { /* analytics must never break the popup */ }
+  }
 }
 
 // Function to inject into content.js context
@@ -70,22 +81,46 @@ function applyVisibilityFromPopup(options) {
 }
 
 checkboxIds.forEach((id) => {
-  document.getElementById(id).addEventListener("change", saveAndApplyOptions);
+  document.getElementById(id).addEventListener("change", () => saveAndApplyOptions(id));
 });
 
 loadOptions();
+
+// One popup_opened event per popup invocation. Chrome rebuilds the popup
+// each time the icon is clicked, so this fires once per session.
+try { window.track && window.track("popup_opened"); } catch (e) { /* ignore */ }
 
 // ── Light Font & Privacy Mode toggles ────────────────────────────────────────
 ["privacyMode"].forEach((key) => {
   const cb = document.getElementById(key);
   chrome.storage.local.get([key], (r) => { cb.checked = !!r[key]; });
-  cb.addEventListener("change", () => chrome.storage.local.set({ [key]: cb.checked }));
+  cb.addEventListener("change", () => {
+    chrome.storage.local.set({ [key]: cb.checked });
+    if (key === "privacyMode") {
+      try {
+        window.track("privacy_mode_toggled", { enabled: cb.checked });
+      } catch (e) { /* ignore */ }
+    }
+  });
 });
 
 document.getElementById("report-bug").addEventListener("click", () => {
+  try { window.track("external_link_clicked", { target: "report_bug" }); } catch (e) { /* ignore */ }
   window.open("https://forms.gle/U7jteYT8hpM19pWZA", "_blank");
 });
 
 document.getElementById("feature-request").addEventListener("click", () => {
+  try { window.track("external_link_clicked", { target: "feature_request" }); } catch (e) { /* ignore */ }
   window.open("https://forms.gle/9Svkf6pVknArjamz9", "_blank");
 });
+
+const settingsBtn = document.getElementById("open-settings");
+if (settingsBtn) {
+  settingsBtn.addEventListener("click", () => {
+    if (chrome.runtime.openOptionsPage) {
+      chrome.runtime.openOptionsPage();
+    } else {
+      window.open(chrome.runtime.getURL("options.html"), "_blank");
+    }
+  });
+}

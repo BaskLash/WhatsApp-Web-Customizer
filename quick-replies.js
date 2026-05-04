@@ -66,6 +66,12 @@ function renderList() {
       currentReplies.splice(index, 1);
       saveReplies();
       renderList();
+      // Analytics: count only — never the deleted text.
+      try {
+        if (window.track) {
+          window.track("quick_reply_deleted", { total_after: currentReplies.length });
+        }
+      } catch (e) { /* ignore */ }
     });
 
     actions.appendChild(editBtn);
@@ -104,6 +110,10 @@ function startEdit(index, item, textSpan) {
     if (val) {
       currentReplies[index] = val;
       saveReplies();
+      // Analytics: no text at all — only that an edit happened.
+      try {
+        if (window.track) window.track("quick_reply_edited");
+      } catch (e) { /* ignore */ }
     }
     renderList();
   }
@@ -136,6 +146,12 @@ document.addEventListener("DOMContentLoaded", () => {
     renderList();
     addInput.value = "";
     addInput.focus();
+    // Analytics: count only — never the new text.
+    try {
+      if (window.track) {
+        window.track("quick_reply_added", { total_after: currentReplies.length });
+      }
+    } catch (e) { /* ignore */ }
   }
 
   addBtn.addEventListener("click", addReply);

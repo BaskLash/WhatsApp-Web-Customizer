@@ -56,6 +56,14 @@ fontSelector.addEventListener("change", () => {
 
   // Auswahl speichern
   chrome.storage.local.set({ fontStyle: selectedFont });
+
+  // Analytics: the font value comes from the fixed <select> enum in
+  // popup.html; "" means "Nothing". No free-text user input.
+  try {
+    if (typeof window !== "undefined" && window.track) {
+      window.track("font_family_changed", { font: selectedFont || "" });
+    }
+  } catch (e) { /* ignore */ }
 });
 
 // Beim Laden prüfen, ob schon ein Font gespeichert wurde

@@ -20,6 +20,21 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.storage.local.set({ "wa-custom-scale": scale });
   };
 
+  // Debounced analytics: drag/keyboard adjustments otherwise produce one
+  // event per micro-step. 600ms gives the user time to settle before we
+  // capture the final value.
+  let scaleTrackTimer = null;
+  const trackScale = (scale) => {
+    if (scaleTrackTimer) clearTimeout(scaleTrackTimer);
+    scaleTrackTimer = setTimeout(() => {
+      try {
+        if (window.track) {
+          window.track("font_scale_changed", { scale: scaleToPercent(scale) });
+        }
+      } catch (e) { /* ignore */ }
+    }, 600);
+  };
+
   // 1. Load saved value
   chrome.storage.local.get(["wa-custom-scale"], (result) => {
     const savedScale = Number(result["wa-custom-scale"] ?? DEFAULT_SCALE);
@@ -31,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const scale = Number(e.target.value);
     percentInput.value = scaleToPercent(scale);
     saveScale(scale);
+    trackScale(scale);
   });
 
   // 3. Percent Input → Slider + Storage
@@ -44,11 +60,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     slider.value = scale;
     saveScale(scale);
+    trackScale(scale);
   });
 
   // 4. Reset Button
   resetBtn.addEventListener("click", () => {
     applyUI(DEFAULT_SCALE);
     saveScale(DEFAULT_SCALE);
+    if (scaleTrackTimer) {
+      clearTimeout(scaleTrackTimer);
+      scaleTrackTimer = null;
+    }
+    try {
+      if (window.track) window.track("font_scale_reset");
+    } catch (e) { /* ignore */ }
   });
 });

@@ -62,6 +62,17 @@
 
     const activate = () => {
       chrome.storage.local.set({ [ACTIVE_KEY]: { id: theme.id } });
+      // Analytics: presets get their stable id (e.g. "preset-blue").
+      // Custom themes report only "custom" — never the user's chosen name.
+      try {
+        if (window.track) {
+          const isPreset = theme.source === "preset";
+          window.track("theme_applied", {
+            theme_id: isPreset ? theme.id : "custom",
+            source: isPreset ? "preset" : "custom",
+          });
+        }
+      } catch (e) { /* ignore */ }
     };
     card.addEventListener("click", activate);
     card.addEventListener("keydown", (e) => {
@@ -103,6 +114,9 @@
     const manageBtn = document.getElementById("open-theme-manager");
     if (manageBtn) {
       manageBtn.addEventListener("click", () => {
+        try {
+          if (window.track) window.track("theme_manager_opened");
+        } catch (e) { /* ignore */ }
         const url = chrome.runtime.getURL("themes.html");
         if (chrome.tabs && chrome.tabs.create) {
           chrome.tabs.create({ url });
@@ -116,6 +130,9 @@
     if (resetBtn) {
       resetBtn.addEventListener("click", () => {
         chrome.storage.local.remove(ACTIVE_KEY);
+        try {
+          if (window.track) window.track("theme_reset");
+        } catch (e) { /* ignore */ }
       });
     }
 

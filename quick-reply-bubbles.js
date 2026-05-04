@@ -96,6 +96,11 @@ function buildBubbles(container, replies, footer) {
         textarea.focus();
         document.execCommand("insertText", false, text);
       }
+      // Analytics: never the reply text or anything from the chat. Only
+      // that a bubble was used.
+      try {
+        if (window.track) window.track("quick_reply_inserted");
+      } catch (e) { /* analytics must never break WhatsApp */ }
     });
 
     container.appendChild(bubble);
