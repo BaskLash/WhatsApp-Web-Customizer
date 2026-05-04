@@ -1,33 +1,21 @@
-// options.js — settings page for the analytics consent toggle and the
-// anonymous distinct ID. Runs in a normal extension page context, so
-// chrome.runtime is fully available.
+// options.js — settings page.
+//
+// Surfaces the anonymous distinct ID (so the user can include it in any
+// data-deletion request) and links to the privacy policy. There is no
+// consent toggle — disclosure runs through the policy and the in-product
+// "About usage data" card.
+//
+// TODO: replace <<< https://your-domain.example/privacy >>> in options.html
+// once the privacy policy is hosted.
 
 (function () {
   document.addEventListener("DOMContentLoaded", async () => {
-    const toggle = document.getElementById("consent-toggle");
     const idValue = document.getElementById("distinct-id");
     const copyBtn = document.getElementById("copy-id");
     const flash = document.getElementById("copied-flash");
 
-    // Initialize toggle from current consent state.
-    try {
-      const consent = await window.getAnalyticsConsent();
-      toggle.checked = consent === "granted";
-    } catch (err) {
-      toggle.checked = false;
-    }
-
-    toggle.addEventListener("change", async () => {
-      try {
-        await window.setAnalyticsConsent(toggle.checked ? "granted" : "declined");
-      } catch (err) {
-        // Revert UI on failure so the toggle reflects reality.
-        toggle.checked = !toggle.checked;
-      }
-    });
-
-    // Show distinct ID. We always have one — getDistinctId in the SW
-    // generates+stores on first call.
+    // We always have an ID — getDistinctId in the SW lazily generates one
+    // on first call.
     try {
       const id = await window.getAnalyticsDistinctId();
       if (id) idValue.textContent = id;

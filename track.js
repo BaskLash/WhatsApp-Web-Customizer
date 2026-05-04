@@ -1,3 +1,6 @@
+// Anonymous usage analytics — see privacy policy at <PRIVACY_URL>.
+// No message content, contacts, or chat data is ever transmitted.
+//
 // track.js — page-side helper for popup, options, and content scripts.
 //
 // Why a thin wrapper:
@@ -24,25 +27,6 @@
     }
   }
 
-  function setConsent(value) {
-    try {
-      return chrome.runtime.sendMessage({ type: "analytics:setConsent", value });
-    } catch (err) {
-      return Promise.resolve(null);
-    }
-  }
-
-  function getConsent() {
-    try {
-      return chrome.runtime
-        .sendMessage({ type: "analytics:getConsent" })
-        .then((res) => (res && res.value) || null)
-        .catch(() => null);
-    } catch (err) {
-      return Promise.resolve(null);
-    }
-  }
-
   function getDistinctId() {
     try {
       return chrome.runtime
@@ -56,8 +40,6 @@
 
   if (typeof window !== "undefined") {
     window.track = track;
-    window.setAnalyticsConsent = setConsent;
-    window.getAnalyticsConsent = getConsent;
     window.getAnalyticsDistinctId = getDistinctId;
   }
 })();

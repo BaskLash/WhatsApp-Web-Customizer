@@ -60,57 +60,20 @@
         margin: 12px 0;
       }
 
+      /* Disclosure card — visually loud on purpose. With no consent toggle,
+         this is the user's primary in-product disclosure. */
+      .disclosure {
+        border: 2px solid var(--wa-accent);
+        background: rgba(16, 185, 129, 0.08);
+        box-shadow: var(--wa-glow);
+      }
+      .disclosure h2 { color: var(--wa-accent); }
+
       p { margin: 0 0 10px; }
       .sub { color: var(--wa-muted); font-size: 14px; }
 
       a { color: var(--wa-accent); text-decoration: none; }
       a:hover { text-decoration: underline; }
-
-      /* Toggle switch — vanilla, matches popup's accent. */
-      .switch-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-      }
-      .switch-row .label {
-        font-weight: 600;
-        font-size: 15px;
-      }
-
-      .switch {
-        position: relative;
-        display: inline-block;
-        width: 44px;
-        height: 24px;
-        flex-shrink: 0;
-      }
-      .switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-      }
-      .slider {
-        position: absolute;
-        cursor: pointer;
-        inset: 0;
-        background: #4b5563;
-        border-radius: 999px;
-        transition: background 0.2s;
-      }
-      .slider::before {
-        content: "";
-        position: absolute;
-        height: 18px;
-        width: 18px;
-        left: 3px;
-        top: 3px;
-        background: #fff;
-        border-radius: 50%;
-        transition: transform 0.2s;
-      }
-      .switch input:checked + .slider { background: var(--wa-accent); }
-      .switch input:checked + .slider::before { transform: translateX(20px); }
 
       .id-row {
         display: flex;
@@ -152,6 +115,25 @@
 
       ul { padding-left: 20px; margin: 4px 0 0; }
       li { margin-bottom: 4px; }
+
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .two-col .col h3 {
+        font-size: 13px;
+        font-weight: 700;
+        margin: 0 0 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      .two-col .col.collected h3 { color: var(--wa-accent); }
+      .two-col .col.never h3 { color: #f97316; }
+
+      @media (max-width: 540px) {
+        .two-col { grid-template-columns: 1fr; }
+      }
     </style>
   </head>
 
@@ -159,21 +141,36 @@
     <div class="wrap">
       <h1>WhatsApp Customizer — Settings</h1>
 
-      <h2>Anonymous usage analytics</h2>
-      <div class="card">
-        <div class="switch-row">
-          <span class="label">Share anonymous usage data</span>
-          <label class="switch">
-            <input type="checkbox" id="consent-toggle" />
-            <span class="slider"></span>
-          </label>
-        </div>
-        <p class="sub" style="margin-top: 12px;">
-          When on, the extension records which features you use (e.g. "theme
-          applied", "quick reply added") and sends them to PostHog on EU
-          servers. Switch off any time. We never read messages, contacts,
-          group names, or anything you type inside WhatsApp.
+      <h2>About usage data</h2>
+      <div class="card disclosure">
+        <p>
+          This extension sends anonymous usage statistics so we can see which
+          features matter and which to retire. Events are sent to PostHog on
+          EU servers (<code>eu.i.posthog.com</code>) over HTTPS. IP-based
+          geolocation is disabled at the project level, and your IP is not
+          stored against your events.
         </p>
+
+        <div class="two-col" style="margin-top: 14px;">
+          <div class="col collected">
+            <h3>Collected</h3>
+            <ul>
+              <li>Which customization features you trigger (event name + categorical metadata)</li>
+              <li>Counts (e.g. number of quick replies)</li>
+              <li>Extension version and your browser language</li>
+              <li>The anonymous ID below</li>
+            </ul>
+          </div>
+          <div class="col never">
+            <h3>Never collected</h3>
+            <ul>
+              <li>Messages or anything you type in WhatsApp</li>
+              <li>Contact names, phone numbers, profile pictures</li>
+              <li>Group names or member lists</li>
+              <li>Search queries or chat titles</li>
+            </ul>
+          </div>
+        </div>
       </div>
 
       <h2>Your anonymous ID</h2>
@@ -181,33 +178,13 @@
         <p class="sub" style="margin-bottom: 12px;">
           This random ID is generated locally and is the only identifier
           attached to your events. Include it in deletion requests so we can
-          remove your data.
+          remove your data (GDPR / Swiss FADP — right to erasure).
         </p>
         <div class="id-row">
           <code class="id-value" id="distinct-id">—</code>
           <button class="copy" id="copy-id">Copy</button>
           <span class="copied-flash" id="copied-flash">Copied</span>
         </div>
-      </div>
-
-      <h2>What is collected</h2>
-      <div class="card">
-        <ul>
-          <li>Which customization features you trigger (event name + categorical metadata)</li>
-          <li>Counts (e.g. number of quick replies you have)</li>
-          <li>Extension version and your browser language</li>
-          <li>The anonymous ID above</li>
-        </ul>
-      </div>
-
-      <h2>What is NEVER collected</h2>
-      <div class="card">
-        <ul>
-          <li>Messages, conversation content, or anything you type in WhatsApp</li>
-          <li>Contact names, phone numbers, or profile pictures</li>
-          <li>Group names, group descriptions, or member lists</li>
-          <li>Search queries or chat titles</li>
-        </ul>
       </div>
 
       <h2>Privacy policy</h2>

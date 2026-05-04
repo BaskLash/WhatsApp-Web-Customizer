@@ -1,11 +1,14 @@
+// Anonymous usage analytics — see privacy policy at <PRIVACY_URL>.
+// No message content, contacts, or chat data is ever transmitted.
+//
 // analytics.js — lightweight PostHog client for Chrome MV3 service workers.
 //
 // Why this design:
 //   - Runs only inside the service worker. Popup, options, and content
 //     scripts forward events via chrome.runtime.sendMessage, so the API key
 //     and queue never live in a page-side context.
-//   - Consent-gated. Without explicit "granted", capture() and flush() are
-//     no-ops and nothing is buffered.
+//   - Always-on. Events are queued and flushed; there is no opt-in toggle.
+//     Disclosure happens through the privacy policy and the options page.
 //   - Queue-and-batch. Events are queued in chrome.storage.local and flushed
 //     every 30s via chrome.alarms. Survives service-worker shutdown.
 //   - No external dependencies, no posthog-js. Plain fetch with keepalive.
@@ -13,6 +16,7 @@
 // Privacy contract (enforced by callers, not this file):
 //   - Property values must never contain text from WhatsApp's UI.
 //   - Counts, durations, and fixed-enum strings only. See track.js callers.
+//   - IP geolocation is disabled at the PostHog project level.
 //
 // Loaded via importScripts() from background.js. Exposes self.analytics.
 
@@ -23,9 +27,7 @@
 
   const STORAGE_KEYS = {
     DISTINCT_ID: "analytics_distinct_id",
-    CONSENT: "analytics_consent",
     QUEUE: "analytics_queue",
-    EXTENSION_VERSION: "analytics_last_version",
   };
 
   const FLUSH_INTERVAL_SECONDS = 30;
@@ -45,41 +47,7 @@
     return newId;
   }
 
-  async function getConsent() {
-    const result = await chrome.storage.local.get(STORAGE_KEYS.CONSENT);
-    return result[STORAGE_KEYS.CONSENT];
-  }
-
-  // Consent transitions are the only place where install/update events fire.
-  // We compare the stored extension version against the current manifest
-  // version: first grant ever → "extension_installed"; subsequent grants
-  // after a version bump → "extension_updated". Subsequent grants on the
-  // same version → no event. Revocation also drops the queue so nothing
-  // pre-revocation leaks out on a future re-grant.
-  async function setConsent(value) {
-    await chrome.storage.local.set({ [STORAGE_KEYS.CONSENT]: value });
-    if (value === "granted") {
-      const stored = await chrome.storage.local.get(STORAGE_KEYS.EXTENSION_VERSION);
-      const lastVersion = stored[STORAGE_KEYS.EXTENSION_VERSION];
-      const currentVersion = chrome.runtime.getManifest().version;
-      if (!lastVersion) {
-        await capture("extension_installed", { version: currentVersion });
-      } else if (lastVersion !== currentVersion) {
-        await capture("extension_updated", { from: lastVersion, to: currentVersion });
-      }
-      await chrome.storage.local.set({
-        [STORAGE_KEYS.EXTENSION_VERSION]: currentVersion,
-      });
-      await flush();
-    } else {
-      await chrome.storage.local.set({ [STORAGE_KEYS.QUEUE]: [] });
-    }
-  }
-
   async function capture(eventName, properties = {}) {
-    const consent = await getConsent();
-    if (consent !== "granted") return;
-
     const distinctId = await getDistinctId();
     const manifest = chrome.runtime.getManifest();
 
@@ -99,16 +67,13 @@
     const queue = Array.isArray(stored[STORAGE_KEYS.QUEUE]) ? stored[STORAGE_KEYS.QUEUE] : [];
     queue.push(event);
     // Drop the oldest events if the queue overflows. Bounded growth matters
-    // because the SW may sit idle without consent for long periods, then a
-    // bad re-grant could otherwise replay a huge backlog.
+    // because the SW may sit idle (or offline) for long periods and we don't
+    // want a backlog to balloon storage.
     if (queue.length > MAX_QUEUE_SIZE) queue.splice(0, queue.length - MAX_QUEUE_SIZE);
     await chrome.storage.local.set({ [STORAGE_KEYS.QUEUE]: queue });
   }
 
   async function flush() {
-    const consent = await getConsent();
-    if (consent !== "granted") return;
-
     const stored = await chrome.storage.local.get(STORAGE_KEYS.QUEUE);
     const queue = Array.isArray(stored[STORAGE_KEYS.QUEUE]) ? stored[STORAGE_KEYS.QUEUE] : [];
     if (queue.length === 0) return;
@@ -139,8 +104,6 @@
       const after = await chrome.storage.local.get(STORAGE_KEYS.QUEUE);
       const live = Array.isArray(after[STORAGE_KEYS.QUEUE]) ? after[STORAGE_KEYS.QUEUE] : [];
       const drained = live.slice(batch.length);
-      // Defensive: if the live queue grew shorter than expected (e.g. user
-      // revoked consent mid-flight and we cleared it), don't restore.
       const finalQueue = drained.length <= remaining.length ? drained : remaining.concat(live.slice(remaining.length));
       await chrome.storage.local.set({ [STORAGE_KEYS.QUEUE]: finalQueue });
     } catch (err) {
@@ -166,14 +129,6 @@
         capture(msg.event, msg.properties).then(() => sendResponse({ ok: true }));
         return true;
       }
-      if (msg.type === "analytics:setConsent") {
-        setConsent(msg.value).then(() => sendResponse({ ok: true }));
-        return true;
-      }
-      if (msg.type === "analytics:getConsent") {
-        getConsent().then((value) => sendResponse({ value }));
-        return true;
-      }
       if (msg.type === "analytics:getDistinctId") {
         getDistinctId().then((value) => sendResponse({ value }));
         return true;
@@ -184,8 +139,26 @@
       }
     });
 
+    // Install / update events. We rely on Chrome's details.previousVersion
+    // rather than tracking it ourselves, so there's no per-version state in
+    // chrome.storage.local for analytics to manage.
+    chrome.runtime.onInstalled.addListener(async (details) => {
+      const currentVersion = chrome.runtime.getManifest().version;
+      if (details.reason === "install") {
+        await capture("extension_installed", { version: currentVersion });
+      } else if (details.reason === "update") {
+        if (details.previousVersion && details.previousVersion !== currentVersion) {
+          await capture("extension_updated", {
+            from: details.previousVersion,
+            to: currentVersion,
+          });
+        }
+      }
+      await flush();
+    });
+
     chrome.runtime.onStartup.addListener(() => flush());
   }
 
-  self.analytics = { initAnalytics, capture, flush, setConsent, getConsent, getDistinctId };
+  self.analytics = { initAnalytics, capture, flush, getDistinctId };
 })();
