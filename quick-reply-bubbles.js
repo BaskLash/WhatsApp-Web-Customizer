@@ -1,26 +1,3 @@
-const defaultReplies = [
-  "On my way!",
-  "I'll call you later.",
-  "Can't talk right now.",
-  "Everything good?",
-  "Talk soon!",
-  "What's up?",
-  "Give me 5 minutes.",
-  "Sounds great!",
-  "How's your day going?",
-  "Thanks! 😊",
-  "I'll write back soon.",
-  "Sorry, super busy!",
-  "Let's discuss tomorrow.",
-  "Sending it over now.",
-  "Got a quick sec?",
-  "Looking forward to it!",
-  "Catch you later.",
-  "Need any help?",
-  "That works for me!",
-  "What's the plan?"
-];
-
 const bubbleStyles = `
   #quick-reply-bubbles {
     display: flex;
@@ -107,29 +84,40 @@ function buildBubbles(container, replies, footer) {
   });
 }
 
+let qrInsertInFlight = false;
+
 function insertQuickReplyBubbles() {
+  if (qrInsertInFlight) return;
   const footer = document.querySelector("footer");
   if (!footer || document.getElementById("quick-reply-bubbles")) return;
 
-  if (!document.getElementById("qr-bubble-styles")) {
-    const styleSheet = document.createElement("style");
-    styleSheet.id = "qr-bubble-styles";
-    styleSheet.textContent = bubbleStyles;
-    document.head.appendChild(styleSheet);
-  }
-
-  // Create container immediately to prevent double-insertion during async load
-  const container = document.createElement("div");
-  container.id = "quick-reply-bubbles";
-  footer.insertBefore(container, footer.firstChild);
+  qrInsertInFlight = true;
 
   chrome.storage.local.get(["quickReplies"], (result) => {
-    // Key present (even as []) = user has explicitly chosen what's shown.
-    // Defaults are only for first-time users who've never saved.
-    const replies = Array.isArray(result.quickReplies)
-      ? result.quickReplies
-      : defaultReplies;
-    buildBubbles(container, replies, footer);
+    try {
+      // Re-check the footer/container — DOM may have changed during the async read.
+      const footerNow = document.querySelector("footer");
+      if (!footerNow || document.getElementById("quick-reply-bubbles")) return;
+
+      const replies = Array.isArray(result.quickReplies)
+        ? result.quickReplies
+        : [];
+      if (replies.length === 0) return;
+
+      if (!document.getElementById("qr-bubble-styles")) {
+        const styleSheet = document.createElement("style");
+        styleSheet.id = "qr-bubble-styles";
+        styleSheet.textContent = bubbleStyles;
+        document.head.appendChild(styleSheet);
+      }
+
+      const container = document.createElement("div");
+      container.id = "quick-reply-bubbles";
+      footerNow.insertBefore(container, footerNow.firstChild);
+      buildBubbles(container, replies, footerNow);
+    } finally {
+      qrInsertInFlight = false;
+    }
   });
 }
 
@@ -137,17 +125,28 @@ function insertQuickReplyBubbles() {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local" || !changes.quickReplies) return;
 
+  const replies = Array.isArray(changes.quickReplies.newValue)
+    ? changes.quickReplies.newValue
+    : [];
+
   const container = document.getElementById("quick-reply-bubbles");
-  if (!container) return;
+
+  // User emptied the list — remove the bar entirely so it disappears live.
+  if (replies.length === 0) {
+    if (container) container.remove();
+    return;
+  }
 
   const footer = document.querySelector("footer");
   if (!footer) return;
 
-  container.innerHTML = "";
+  // User had no bubbles before (no container) but now has some — insert fresh.
+  if (!container) {
+    insertQuickReplyBubbles();
+    return;
+  }
 
-  const replies = Array.isArray(changes.quickReplies.newValue)
-    ? changes.quickReplies.newValue
-    : defaultReplies;
+  container.innerHTML = "";
   buildBubbles(container, replies, footer);
 });
 

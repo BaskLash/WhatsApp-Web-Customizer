@@ -1,28 +1,5 @@
 const QR_STORAGE_KEY = "quickReplies";
 
-const QR_DEFAULTS = [
-  "On my way!",
-  "I'll call you later.",
-  "Can't talk right now.",
-  "Everything good?",
-  "Talk soon!",
-  "What's up?",
-  "Give me 5 minutes.",
-  "Sounds great!",
-  "How's your day going?",
-  "Thanks! 😊",
-  "I'll write back soon.",
-  "Sorry, super busy!",
-  "Let's discuss tomorrow.",
-  "Sending it over now.",
-  "Got a quick sec?",
-  "Looking forward to it!",
-  "Catch you later.",
-  "Need any help?",
-  "That works for me!",
-  "What's the plan?"
-];
-
 let currentReplies = [];
 
 function saveReplies() {
@@ -129,9 +106,7 @@ function startEdit(index, item, textSpan) {
 document.addEventListener("DOMContentLoaded", () => {
   chrome.storage.local.get([QR_STORAGE_KEY], (result) => {
     const stored = result[QR_STORAGE_KEY];
-    // Key present (even as []) means the user has touched the list — respect it.
-    // Only fall back to defaults when nothing has ever been saved.
-    currentReplies = Array.isArray(stored) ? stored : QR_DEFAULTS.slice();
+    currentReplies = Array.isArray(stored) ? stored : [];
     renderList();
   });
 
