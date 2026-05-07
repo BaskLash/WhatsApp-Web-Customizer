@@ -248,6 +248,13 @@ function startOnce() {
   try {
     if (window.track) window.track("whatsapp_web_loaded");
   } catch (e) { /* analytics must never break WhatsApp */ }
+  // Review prompt: gates itself on session count + days since install,
+  // waits for chat UI + 3s settle, and is a no-op if conditions aren't met.
+  try {
+    if (window.WAReviewPrompt && window.WAReviewPrompt.init) {
+      window.WAReviewPrompt.init();
+    }
+  } catch (e) { /* review prompt must never break WhatsApp */ }
 }
 document.addEventListener("DOMContentLoaded", startOnce);
 window.addEventListener("load", startOnce);
