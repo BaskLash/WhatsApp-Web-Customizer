@@ -5,7 +5,13 @@ Original code by Rosa Lui
 <style>
   .lamp{
     background-color:#090a0f;
-    background: var(--wac_custom_var_0);
+    /* Fallback inside var() so the declaration stays valid when
+       --wac_custom_var_0 is not provided. Without a fallback the entire
+       `background` shorthand goes IACVT (invalid at computed-value time)
+       and also wipes background-color above, leaving the lamp fully
+       transparent — the original symptom of "nothing happens on apply".
+       Default = first color scheme from the reference's themes_data.json. */
+    background: var(--wac_custom_var_0, radial-gradient(ellipse at bottom, rgba(27, 39, 53, 1), rgba(9, 10, 15, 1)));
     position: absolute;
     top: 50%;
     left: 50%;
@@ -29,7 +35,9 @@ Original code by Rosa Lui
   
   .blob{
     border-radius: 50%;
-    background: var(--wac_custom_var_1);
+    /* Same fallback rationale as .lamp above. Default = blob colour from
+       the reference's first color scheme. */
+    background: var(--wac_custom_var_1, linear-gradient(#D461AC, #F67185));
     /* Other sample colors:
     Orange: #e8630a
     Pink: #EA3281
