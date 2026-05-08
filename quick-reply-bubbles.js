@@ -57,9 +57,33 @@ const bubbleStyles = `
   }
 `;
 
+// Min seconds between bubbles_shown emissions, per page load. WhatsApp
+// rebuilds the footer DOM on every chat switch and on every storage change,
+// so a user who switches chats rapidly (or saves replies one by one with
+// the popup open) would otherwise generate dozens of redundant events.
+// 10s is short enough to capture real engagement windows, long enough to
+// flatten flicker.
+const BUBBLES_SHOWN_THROTTLE_MS = 10_000;
+let lastBubblesShownAt = 0;
+
 function buildBubbles(container, replies, footer) {
   const shuffled = [...replies].sort(() => 0.5 - Math.random());
   const toShow = shuffled.slice(0, Math.min(5, shuffled.length));
+  const bubblesShown = toShow.length;
+
+  // Throttled denominator event. `count` = bubbles painted, `qr_count_total`
+  // = library size — together they let us compute insert-rate per real
+  // impression without per-millisecond noise.
+  try {
+    const now = Date.now();
+    if (window.track && now - lastBubblesShownAt >= BUBBLES_SHOWN_THROTTLE_MS) {
+      lastBubblesShownAt = now;
+      window.track("quick_reply_bubbles_shown", {
+        count: bubblesShown,
+        qr_count_total: replies.length,
+      });
+    }
+  } catch (_) { /* analytics must never break WhatsApp */ }
 
   toShow.forEach((text, index) => {
     const bubble = document.createElement("span");
@@ -73,10 +97,15 @@ function buildBubbles(container, replies, footer) {
         textarea.focus();
         document.execCommand("insertText", false, text);
       }
-      // Analytics: never the reply text or anything from the chat. Only
-      // that a bubble was used.
+      // Analytics: never the reply text or anything from the chat. Position
+      // and count are structural — they refer to bubble slots, not content.
       try {
-        if (window.track) window.track("quick_reply_inserted");
+        if (window.track) {
+          window.track("quick_reply_inserted", {
+            bubble_position: index,
+            bubbles_shown: bubblesShown,
+          });
+        }
       } catch (e) { /* analytics must never break WhatsApp */ }
     });
 

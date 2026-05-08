@@ -87,8 +87,39 @@ checkboxIds.forEach((id) => {
 loadOptions();
 
 // One popup_opened event per popup invocation. Chrome rebuilds the popup
-// each time the icon is clicked, so this fires once per session.
-try { window.track && window.track("popup_opened"); } catch (e) { /* ignore */ }
+// each time the icon is clicked, so this fires once per session. Boolean
+// snapshot answers "which features does this user have configured?" without
+// needing per-feature events — useful as a denominator for engagement.
+try {
+  chrome.storage.local.get(
+    [
+      "themes:active",
+      "welcome", "navside", "sidenav", "chatview",
+      "fontStyle",
+      "wa-custom-scale",
+      "privacyMode",
+      "quickReplies",
+      "visibilityOptions",
+    ],
+    (r) => {
+      const visibility = r.visibilityOptions || {};
+      const props = {
+        has_active_theme: !!(r["themes:active"] && r["themes:active"].id),
+        has_any_slot: !!(r.welcome || r.navside || r.sidenav || r.chatview),
+        font_set: !!r.fontStyle,
+        scale_changed: Number(r["wa-custom-scale"] ?? 1) !== 1,
+        privacy_mode: !!r.privacyMode,
+        qr_count: Array.isArray(r.quickReplies) ? r.quickReplies.length : 0,
+        visibility_status: !!visibility.status,
+        visibility_channels: !!visibility.channels,
+        visibility_communities: !!visibility.communities,
+        visibility_locked_chats: !!visibility.lockedChats,
+        visibility_archived: !!visibility.archived,
+      };
+      try { window.track && window.track("popup_opened", props); } catch (_) { /* ignore */ }
+    },
+  );
+} catch (e) { /* ignore */ }
 
 // ── Light Font & Privacy Mode toggles ────────────────────────────────────────
 ["privacyMode"].forEach((key) => {
@@ -117,6 +148,9 @@ document.getElementById("feature-request").addEventListener("click", () => {
 const settingsBtn = document.getElementById("open-settings");
 if (settingsBtn) {
   settingsBtn.addEventListener("click", () => {
+    try {
+      if (window.track) window.track("settings_gear_clicked");
+    } catch (_) { /* ignore */ }
     if (chrome.runtime.openOptionsPage) {
       chrome.runtime.openOptionsPage();
     } else {

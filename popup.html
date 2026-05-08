@@ -314,6 +314,73 @@
                 background: #dc2626;
             }
 
+            /* Empty-state hint shown when the user has no quick replies yet.
+               Built by quick-replies.js — kept terse and inviting. */
+            .qr-empty {
+                background: var(--wa-bg);
+                border: 1px dashed var(--wa-border);
+                border-radius: 6px;
+                padding: 12px;
+                color: var(--wa-muted);
+                text-align: center;
+            }
+
+            /* Static visual preview shown above the create form so users
+               see *where* bubbles appear in WhatsApp Web before they create
+               one. Mimics the live styling in quick-reply-bubbles.js but is
+               purely decorative — no listeners, no JS. */
+            .qr-preview {
+                background: linear-gradient(180deg,
+                    rgba(16, 185, 129, 0.04),
+                    rgba(16, 185, 129, 0.0));
+                border: 1px solid var(--wa-border);
+                border-radius: 8px;
+                padding: 10px 10px 8px;
+            }
+            .qr-preview-bubbles {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                margin-bottom: 8px;
+            }
+            .qr-preview-bubble {
+                background: linear-gradient(135deg, #ffffff, #f0f0f5);
+                color: #1f2937;
+                border-radius: 14px;
+                padding: 4px 10px;
+                font-size: 11px;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+            }
+            .qr-preview-composer {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                background: var(--wa-bg);
+                border: 1px solid var(--wa-border);
+                border-radius: 18px;
+                padding: 6px 10px;
+            }
+            .qr-preview-icon {
+                font-size: 13px;
+                opacity: 0.6;
+            }
+            .qr-preview-input {
+                flex: 1;
+                color: var(--wa-muted);
+                font-size: 11px;
+                font-style: italic;
+            }
+            .qr-preview-send {
+                color: var(--wa-accent);
+                font-size: 12px;
+            }
+            .qr-preview-caption {
+                margin-top: 6px;
+                font-size: 11px;
+                color: var(--wa-muted);
+                text-align: center;
+            }
+
             /* Font live preview block */
             #font-preview {
                 background: var(--wa-bg);
@@ -738,8 +805,28 @@
                     <section class="tab-pane fade" id="tab-replies">
                         <h2 class="section-label mb-2">Quick replies</h2>
                         <p class="text-secondary small mb-3">
-                            Canned responses you can paste into any chat from WhatsApp Web.
+                            Save the messages you type most. They appear as one-tap bubbles above WhatsApp Web's input.
                         </p>
+
+                        <!-- Visual preview: shows users *where* the bubbles appear and
+                             *how* they look in WhatsApp Web before they create one.
+                             Pure CSS — no images, no JS. Each bubble's gradient mirrors
+                             the live styling from quick-reply-bubbles.js. -->
+                        <div id="qr-preview" class="qr-preview mb-3" aria-hidden="true">
+                            <div class="qr-preview-bubbles">
+                                <span class="qr-preview-bubble">On my way!</span>
+                                <span class="qr-preview-bubble">Got it 👍</span>
+                                <span class="qr-preview-bubble">Talk later</span>
+                            </div>
+                            <div class="qr-preview-composer">
+                                <span class="qr-preview-icon">😊</span>
+                                <span class="qr-preview-input">Type a message…</span>
+                                <span class="qr-preview-send">➤</span>
+                            </div>
+                            <div class="qr-preview-caption">
+                                Bubbles appear above WhatsApp's message box. Click to insert.
+                            </div>
+                        </div>
 
                         <!-- Create UI is the FIRST thing the user sees in this tab. -->
                         <div
@@ -758,7 +845,7 @@
                                         <line x1="12" y1="5" x2="12" y2="19" />
                                         <line x1="5" y1="12" x2="19" y2="12" />
                                     </svg>
-                                    Create a new quick reply
+                                    Add your first reply
                                 </label>
                                 <div class="input-group input-group-sm">
                                     <input
@@ -769,11 +856,11 @@
                                         maxlength="200"
                                     />
                                     <button id="qr-add-btn" type="button" class="btn btn-success">
-                                        Add
+                                        Save
                                     </button>
                                 </div>
                                 <small class="text-secondary d-block mt-2">
-                                    Press <kbd class="small">Enter</kbd> or click <strong>Add</strong> to save.
+                                    Press <kbd class="small">Enter</kbd> to save. Up to 5 random bubbles show in any chat.
                                 </small>
                             </div>
                         </div>

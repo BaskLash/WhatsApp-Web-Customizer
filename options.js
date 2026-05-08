@@ -13,6 +13,11 @@
     const idValue = document.getElementById("distinct-id");
     const copyBtn = document.getElementById("copy-id");
     const flash = document.getElementById("copied-flash");
+    const privacyLink = document.getElementById("privacy-link");
+
+    try {
+      if (window.track) window.track("options_page_opened");
+    } catch (_) { /* ignore */ }
 
     // We always have an ID — getDistinctId in the SW lazily generates one
     // on first call.
@@ -31,6 +36,11 @@
           await navigator.clipboard.writeText(text);
           flash.classList.add("show");
           setTimeout(() => flash.classList.remove("show"), 1200);
+          // Strong proxy for "user is preparing a deletion request" — useful
+          // for sizing GDPR/FADP workload, no PII attached.
+          try {
+            if (window.track) window.track("distinct_id_copied");
+          } catch (_) { /* ignore */ }
         } catch (err) {
           // Clipboard may be denied; fall back to selecting the text so
           // the user can copy manually.
@@ -40,6 +50,14 @@
           sel.removeAllRanges();
           sel.addRange(range);
         }
+      });
+    }
+
+    if (privacyLink) {
+      privacyLink.addEventListener("click", () => {
+        try {
+          if (window.track) window.track("privacy_policy_link_clicked");
+        } catch (_) { /* ignore */ }
       });
     }
   });

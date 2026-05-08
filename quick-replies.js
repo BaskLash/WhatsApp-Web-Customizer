@@ -12,8 +12,15 @@ function renderList() {
 
   if (currentReplies.length === 0) {
     const empty = document.createElement("div");
-    empty.className = "qr-empty text-secondary small fst-italic px-1 py-2";
-    empty.textContent = "No quick replies. Add one above to get started.";
+    empty.className = "qr-empty";
+    empty.innerHTML =
+      '<div style="font-size:13px;color:var(--wa-text);margin-bottom:4px;">' +
+      "No saved replies yet" +
+      "</div>" +
+      '<div style="font-size:11px;">' +
+      "Try short greetings, status updates, or polite no's. " +
+      "You can edit or delete any reply later." +
+      "</div>";
     list.appendChild(empty);
     return;
   }
@@ -116,6 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function addReply() {
     const val = addInput.value.trim();
     if (!val) return;
+    const wasFirstEver = currentReplies.length === 0;
     currentReplies.push(val);
     saveReplies();
     renderList();
@@ -125,6 +133,17 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       if (window.track) {
         window.track("quick_reply_added", { total_after: currentReplies.length });
+        // Distinguishes the lifetime first-add from subsequent ones — the
+        // former is the conversion signal we care about for the redesign.
+        // Persisted flag means we don't re-fire on add → delete-all → add.
+        chrome.storage.local.get(["qr_first_added_at"], (r) => {
+          if (!r.qr_first_added_at) {
+            chrome.storage.local.set({ qr_first_added_at: Date.now() });
+            if (wasFirstEver) {
+              try { window.track("quick_reply_first_added"); } catch (_) {}
+            }
+          }
+        });
       }
     } catch (e) { /* ignore */ }
   }

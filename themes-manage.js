@@ -124,7 +124,28 @@
     });
   }
 
-  async function importFromFiles(fileList) {
+  // Maps validateTheme() messages to a fixed enum so reasons stay safe to
+  // report. Anything we don't recognize collapses into "other".
+  function classifyValidationError(msg) {
+    if (!msg) return "other";
+    if (/JSON object/.test(msg)) return "not_object";
+    if (/'name'/.test(msg)) return "missing_name";
+    if (/'vars'/.test(msg)) return "missing_vars";
+    if (/empty/.test(msg)) return "empty_vars";
+    if (/start with '--'/.test(msg)) return "invalid_var_key";
+    if (/non-empty string/.test(msg)) return "invalid_var_value";
+    return "other";
+  }
+
+  function trackImportRejection(reason, method) {
+    try {
+      if (window.track) {
+        window.track("theme_import_rejected", { reason, method });
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  async function importFromFiles(fileList, method = "file_picker") {
     const files = Array.from(fileList || []);
     if (!files.length) return;
 
@@ -134,6 +155,7 @@
     for (const file of files) {
       if (file.size > MAX_FILE_SIZE) {
         failed++;
+        trackImportRejection("too_large", method);
         setStatus("upload-status", `${file.name}: file too large.`, "error");
         continue;
       }
@@ -145,6 +167,7 @@
           const err = validateTheme(item);
           if (err) {
             failed++;
+            trackImportRejection(classifyValidationError(err), method);
             setStatus("upload-status", `${file.name}: ${err}`, "error");
             continue;
           }
@@ -153,9 +176,20 @@
         }
       } catch (e) {
         failed++;
+        trackImportRejection("parse_error", method);
         setStatus("upload-status", `${file.name}: ${e.message || "parse failed"}.`, "error");
       }
     }
+
+    try {
+      if (window.track && (added > 0 || failed > 0)) {
+        window.track("theme_imported", {
+          method,
+          added_count: added,
+          failed_count: failed,
+        });
+      }
+    } catch (_) { /* ignore */ }
 
     if (added > 0) {
       setStatus("upload-status",
@@ -171,19 +205,38 @@
   // ── Import: URL ──────────────────────────────────────────────────────────
   async function importFromUrl(url) {
     setStatus("url-status", "Fetching…", "info");
+    const method = "url";
+    let httpFailed = false;
     try {
       const res = await fetch(url, { mode: "cors" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        httpFailed = true;
+        trackImportRejection("http_error", method);
+        throw new Error(`HTTP ${res.status}`);
+      }
       const parsed = await res.json();
       const items = Array.isArray(parsed) ? parsed : [parsed];
       let added = 0;
       let failed = 0;
       for (const item of items) {
         const err = validateTheme(item);
-        if (err) { failed++; continue; }
+        if (err) {
+          failed++;
+          trackImportRejection(classifyValidationError(err), method);
+          continue;
+        }
         await addOrReplaceTheme(item);
         added++;
       }
+      try {
+        if (window.track && (added > 0 || failed > 0)) {
+          window.track("theme_imported", {
+            method,
+            added_count: added,
+            failed_count: failed,
+          });
+        }
+      } catch (_) { /* ignore */ }
       if (added > 0) {
         setStatus("url-status",
           `Imported ${added} theme${added === 1 ? "" : "s"}` +
@@ -194,6 +247,8 @@
         setStatus("url-status", "No valid themes in response.", "error");
       }
     } catch (e) {
+      // Don't double-count: HTTP-status failures already emitted http_error.
+      if (!httpFailed) trackImportRejection("network_error", method);
       setStatus("url-status", `Failed: ${e.message || "network error"}.`, "error");
     }
   }
@@ -218,6 +273,9 @@
       author: theme.author || "",
       vars: theme.vars
     });
+    try {
+      if (window.track) window.track("theme_exported", { mode: "single", count: 1 });
+    } catch (_) { /* ignore */ }
   }
 
   function exportAll() {
@@ -230,6 +288,11 @@
       author: t.author || "",
       vars: t.vars
     })));
+    try {
+      if (window.track) {
+        window.track("theme_exported", { mode: "all", count: customs.length });
+      }
+    } catch (_) { /* ignore */ }
     toast(`Exported ${customs.length} theme${customs.length === 1 ? "" : "s"}.`, "success");
   }
 
@@ -305,9 +368,18 @@
       delBtn.addEventListener("click", async (e) => {
         e.stopPropagation();
         if (!confirm(`Delete "${theme.name}"?`)) return;
+        const wasActive = activeId === theme.id;
         customs = customs.filter((t) => t.id !== theme.id);
         await saveCustoms();
         await clearActiveIfMatches(theme.id);
+        try {
+          if (window.track) {
+            // Custom theme IDs are slugged from the user's chosen name, so
+            // they could leak free text. Match themes.js convention and
+            // collapse to the literal "custom".
+            window.track("theme_deleted", { theme_id: "custom", was_active: wasActive });
+          }
+        } catch (_) { /* ignore */ }
         toast("Theme deleted.", "success");
         renderAll();
       });
@@ -321,6 +393,18 @@
     card.addEventListener("click", async () => {
       await setActive(theme.id);
       activeId = theme.id;
+      try {
+        if (window.track) {
+          // Mirrors themes.js: presets get their stable id, customs are
+          // collapsed to the literal "custom" — no user text in the payload.
+          const isPreset = theme.source === "preset";
+          window.track("theme_applied", {
+            theme_id: isPreset ? theme.id : "custom",
+            source: isPreset ? "preset" : "custom",
+            from_page: "manage",
+          });
+        }
+      } catch (_) { /* ignore */ }
       toast(`Applied "${theme.name}".`, "success");
       renderAll();
     });

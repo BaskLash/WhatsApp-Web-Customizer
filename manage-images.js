@@ -237,12 +237,20 @@ async function deleteImage(entry) {
     await clearSlotsUsing(entry.src);
     showToast("Image deleted.");
   }
+  try {
+    if (window.track) {
+      window.track("image_deleted", { kind: entry.kind, from_page: "manage" });
+    }
+  } catch (_) { /* ignore */ }
   renderGallery();
 }
 
 async function restoreImage(entry) {
   if (!disabledImages.delete(entry.src)) return;
   await saveDisabled();
+  try {
+    if (window.track) window.track("image_restored");
+  } catch (_) { /* ignore */ }
   showToast("Image restored.");
   renderGallery();
 }
@@ -268,7 +276,7 @@ async function addUploadedFromDataUrl(dataUrl, { mime, suggestedName, source, or
   return { added: true };
 }
 
-async function handleFiles(files) {
+async function handleFiles(files, method = "file_picker") {
   if (!files || files.length === 0) return;
   let added = 0;
   let skipped = 0;
@@ -311,10 +319,24 @@ async function handleFiles(files) {
     showToast(`${added} image${added === 1 ? "" : "s"} added.`);
     renderGallery();
   }
+  // Always emit so we can measure rejection rate, not just successes.
+  try {
+    if (window.track) {
+      window.track("image_uploaded", {
+        method,
+        added,
+        skipped_duplicate: skipped,
+        rejected: errors,
+      });
+    }
+  } catch (_) { /* ignore */ }
   fileInput.value = "";
 }
 
 async function handleSmartPaste() {
+  // `branch` is the fixed enum we send to analytics — set as soon as we
+  // know which clipboard format we're handling.
+  let branch = "none";
   try {
     const items = await navigator.clipboard.read();
 
@@ -329,7 +351,8 @@ if (imageType) {
   const blob = await item.getType(imageType);
   const file = new File([blob], "clipboard-image", { type: imageType });
 
-  await handleFiles([file]);
+  await handleFiles([file], "paste");
+  branch = "image_blob";
 
   setStatus(urlStatus, "Image pasted from clipboard.", "success");
   handled = true;
@@ -352,6 +375,7 @@ if (imageType) {
           setStatus(urlStatus, "Processing clipboard image…", "info");
 urlInput.value = url;
 await handleUrlAdd();
+          branch = "html_img";
           handled = true;
           break;
         }
@@ -372,6 +396,7 @@ await handleUrlAdd();
             setStatus(urlStatus, "URL pasted from clipboard.", "success");
 
             await handleUrlAdd();
+            branch = "text_url";
             handled = true;
             break;
           }
@@ -387,7 +412,18 @@ await handleUrlAdd();
   } catch (err) {
     console.error(err);
     setStatus(urlStatus, "Clipboard access denied or unsupported.", "error");
+    branch = "denied";
   }
+
+  try {
+    if (window.track) window.track("image_pasted", { branch });
+  } catch (_) { /* ignore */ }
+}
+
+function trackUrlOutcome(outcome) {
+  try {
+    if (window.track) window.track("image_url_added", { outcome });
+  } catch (_) { /* ignore */ }
 }
 
 async function handleUrlAdd() {
@@ -400,10 +436,12 @@ async function handleUrlAdd() {
   try {
     parsed = new URL(rawUrl);
   } catch (_err) {
+    trackUrlOutcome("invalid_url");
     setStatus(urlStatus, "That doesn't look like a valid URL.", "error");
     return;
   }
   if (!/^https?:$/.test(parsed.protocol)) {
+    trackUrlOutcome("invalid_url");
     setStatus(urlStatus, "Only http(s) URLs are supported.", "error");
     return;
   }
@@ -430,7 +468,9 @@ async function handleUrlAdd() {
 
     const response = await fetch(rawUrl, { mode: "cors" });
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const e = new Error(`HTTP ${response.status}`);
+      e.outcome = "http_error";
+      throw e;
     }
     const contentType = (response.headers.get("content-type") || "").split(";")[0].trim();
     const blob = await response.blob();
@@ -440,10 +480,14 @@ async function handleUrlAdd() {
         ? blob.type
         : null;
     if (!mime) {
-      throw new Error("The URL did not return a supported image (JPG, PNG, WEBP, GIF).");
+      const e = new Error("The URL did not return a supported image (JPG, PNG, WEBP, GIF).");
+      e.outcome = "unsupported_mime";
+      throw e;
     }
     if (blob.size > MAX_FILE_BYTES) {
-      throw new Error("Image is too large (max 8 MB).");
+      const e = new Error("Image is too large (max 8 MB).");
+      e.outcome = "too_large";
+      throw e;
     }
     const dataUrl = await fileToDataUrl(
       new File([blob], "url-image", { type: mime }),
@@ -454,8 +498,10 @@ async function handleUrlAdd() {
       originalUrl: rawUrl,
     });
     if (!result.added) {
+      trackUrlOutcome("duplicate");
       setStatus(urlStatus, "This image is already in your library.", "info");
     } else {
+      trackUrlOutcome("added");
       setStatus(urlStatus, "Image added to your library.", "success");
       urlInput.value = "";
       showToast("URL image added.");
@@ -465,6 +511,10 @@ async function handleUrlAdd() {
     // CORS failures surface as a generic TypeError with no message in Chrome —
     // give the user a hint so they know they can still upload the file manually.
     const msg = err && err.message ? err.message : "Failed to fetch image.";
+    const outcome = err && err.outcome
+      ? err.outcome
+      : /Failed to fetch|NetworkError/.test(msg) ? "cors_error" : "http_error";
+    trackUrlOutcome(outcome);
     const hint = /Failed to fetch|NetworkError|HTTP/.test(msg)
       ? "Some sites block cross-origin downloads. Try saving the image and uploading it from your device."
       : "";
@@ -491,9 +541,9 @@ dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover
 dropZone.addEventListener("drop", (e) => {
   e.preventDefault();
   dropZone.classList.remove("dragover");
-  handleFiles(e.dataTransfer.files);
+  handleFiles(e.dataTransfer.files, "drop");
 });
-fileInput.addEventListener("change", (e) => handleFiles(e.target.files));
+fileInput.addEventListener("change", (e) => handleFiles(e.target.files, "file_picker"));
 
 urlAddBtn.addEventListener("click", handleUrlAdd);
 urlInput.addEventListener("keydown", (e) => {
@@ -504,7 +554,15 @@ filterButtons.forEach((btn) =>
   btn.addEventListener("click", () => {
     filterButtons.forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
-    currentFilter = btn.dataset.filter;
+    const next = btn.dataset.filter;
+    if (next !== currentFilter) {
+      try {
+        if (window.track) {
+          window.track("image_filter_changed", { filter: next });
+        }
+      } catch (_) { /* ignore */ }
+      currentFilter = next;
+    }
     renderGallery();
   }),
 );

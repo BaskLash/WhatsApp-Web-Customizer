@@ -243,10 +243,44 @@ function startOnce() {
   if (runAllStarted) return;
   runAllStarted = true;
   runAll();
-  // Fires exactly once per WhatsApp Web load. No props — we only need to
-  // know the user has the extension active on the page.
+  // Fires exactly once per WhatsApp Web load. The boolean snapshot tells us
+  // which features are *configured* (not necessarily used today), which is
+  // the cheapest way to size each feature's installed footprint without
+  // sending any user content. Async read — track() fires when storage resolves.
   try {
-    if (window.track) window.track("whatsapp_web_loaded");
+    chrome.storage.local.get(
+      [
+        "themes:active",
+        "welcome", "navside", "sidenav", "chatview",
+        "fontStyle",
+        "wa-custom-scale",
+        "privacyMode",
+        "quickReplies",
+        "visibilityOptions",
+      ],
+      (r) => {
+        const visibility = r.visibilityOptions || {};
+        const features = {
+          theme_set: !!(r["themes:active"] && r["themes:active"].id),
+          slot_welcome: !!r.welcome,
+          slot_navside: !!r.navside,
+          slot_sidenav: !!r.sidenav,
+          slot_chatview: !!r.chatview,
+          font_set: !!r.fontStyle,
+          scale_changed: Number(r["wa-custom-scale"] ?? 1) !== 1,
+          privacy_mode: !!r.privacyMode,
+          qr_count: Array.isArray(r.quickReplies) ? r.quickReplies.length : 0,
+          visibility_status: !!visibility.status,
+          visibility_channels: !!visibility.channels,
+          visibility_communities: !!visibility.communities,
+          visibility_locked_chats: !!visibility.lockedChats,
+          visibility_archived: !!visibility.archived,
+        };
+        try {
+          if (window.track) window.track("whatsapp_web_loaded", features);
+        } catch (_) { /* analytics must never break WhatsApp */ }
+      },
+    );
   } catch (e) { /* analytics must never break WhatsApp */ }
   // Review prompt: gates itself on session count + days since install,
   // waits for chat UI + 3s settle, and is a no-op if conditions aren't met.
@@ -295,8 +329,81 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 
 // ── Privacy Mode ───────────────────────────────────────────────────────────────
-// Blurs message previews in the chat list so bystanders or screen-share
-// viewers cannot read conversations. Hovering a row reveals it temporarily.
+// Hides sensitive content while preserving WhatsApp's layout (no nodes are
+// hidden, removed, or repositioned — only `filter: blur` is applied).
+//
+// Targets are split into three logical groups so future analytics-driven
+// iterations can ship per-group toggles without restructuring the engine:
+//
+//   PRIVACY_GROUPS.sidebar  — chat-list rows (name + last-message preview)
+//   PRIVACY_GROUPS.header   — open conversation's header (contact name)
+//   PRIVACY_GROUPS.messages — open conversation's message area + media
+//
+// Today the Privacy Mode toggle enables all three together. To split later,
+// store an object instead of a boolean and OR each group's CSS in.
+//
+// DOM-update resilience: each group lists multiple selectors (current +
+// fallback). WhatsApp occasionally renames attributes; the cascade simply
+// matches whichever selector still resolves.
+//
+// Hover-to-reveal: kept on every group for consistency with the existing
+// sidebar pattern. Active hover signals deliberate intent to read; releasing
+// it re-blurs immediately. No keyboard shortcut or focus-reveal — those
+// would add discoverability cost without solving an observed problem.
+const PRIVACY_BLUR_PX = 8;
+const PRIVACY_GROUPS = {
+  sidebar: `
+    /* Chat-list rows: name + last-message preview, including unread counts */
+    #pane-side [role="row"] > div {
+      filter: blur(${PRIVACY_BLUR_PX}px);
+      transition: filter 0.15s ease;
+    }
+    #pane-side [role="row"]:hover > div {
+      filter: blur(0);
+    }
+  `,
+  header: `
+    /* Active conversation's header: contact name, status, profile picture.
+       We deliberately scope to the direct child header so the search header
+       inside #main (when present) is left untouched. */
+    #main > header {
+      filter: blur(${PRIVACY_BLUR_PX}px);
+      transition: filter 0.15s ease;
+    }
+    #main > header:hover {
+      filter: blur(0);
+    }
+  `,
+  messages: `
+    /* Active conversation's message area. Selector list covers WhatsApp's
+       current testid + the role-based fallback used in older builds. The
+       composer (footer) is intentionally untouched — the user needs to see
+       what they type. Media inside messages is blurred via the cascade
+       since it lives under the same container. */
+    #main [data-testid="conversation-panel-messages"],
+    #main div[role="application"] {
+      filter: blur(${PRIVACY_BLUR_PX}px);
+      transition: filter 0.15s ease;
+    }
+    #main [data-testid="conversation-panel-messages"]:hover,
+    #main div[role="application"]:hover {
+      filter: blur(0);
+    }
+  `,
+};
+
+function buildPrivacyCss(enabled) {
+  if (!enabled) return "";
+  // Single boolean today; structured as a join so a future per-group config
+  // (e.g. { sidebar: true, header: false, messages: true }) is a one-line
+  // change here — no caller needs to be touched.
+  return [
+    PRIVACY_GROUPS.sidebar,
+    PRIVACY_GROUPS.header,
+    PRIVACY_GROUPS.messages,
+  ].join("\n");
+}
+
 function applyPrivacyMode(enabled) {
   let style = document.getElementById("wa-privacy-style");
   if (!style) {
@@ -304,15 +411,7 @@ function applyPrivacyMode(enabled) {
     style.id = "wa-privacy-style";
     document.head.appendChild(style);
   }
-  style.innerHTML = enabled ? `
-    #pane-side [role="row"] > div {
-      filter: blur(6px);
-      transition: filter 0.15s ease;
-    }
-    #pane-side [role="row"]:hover > div {
-      filter: blur(0);
-    }
-  ` : "";
+  style.innerHTML = buildPrivacyCss(!!enabled);
 }
 
 chrome.storage.local.get(["privacyMode"], (result) => {

@@ -56,6 +56,9 @@
       properties: {
         ...properties,
         distinct_id: distinctId,
+        // Stable per-emission ID. PostHog uses this to drop duplicates if a
+        // batch is retried after a partial failure (see flush() catch path).
+        $insert_id: generateUUID(),
         $lib: "chrome-extension",
         extension_version: manifest.version,
         browser_language: typeof navigator !== "undefined" ? navigator.language : undefined,
@@ -108,6 +111,15 @@
       await chrome.storage.local.set({ [STORAGE_KEYS.QUEUE]: finalQueue });
     } catch (err) {
       console.warn("[analytics] flush failed, will retry:", err);
+      // Re-queue a single diagnostic event so we can measure delivery health.
+      // The event itself goes through capture(), so it picks up $insert_id and
+      // gets retried on the next flush like any other event.
+      try {
+        await capture("analytics_flush_failed", {
+          status: typeof err?.message === "string" ? err.message.slice(0, 64) : "unknown",
+          batch_size: batch.length,
+        });
+      } catch (_) { /* never escalate */ }
     }
   }
 

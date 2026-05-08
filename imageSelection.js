@@ -330,7 +330,11 @@ function cssEscape(value) {
 // ── Deletion ────────────────────────────────────────────────────────────────
 
 function deleteImage(src) {
+  let kind = null;
   if (isUserImage(src)) {
+    // We can't tell upload vs. url apart here without re-reading storage —
+    // categorize as "user" and let manage-images send the precise breakdown.
+    kind = "user";
     uploadedImages = uploadedImages.filter((i) => i.dataUrl !== src);
     chrome.storage.local.set({ uploadedImages }, () => clearSlotsUsing(src));
     // A user image might also have been individually disabled — clean up.
@@ -338,6 +342,7 @@ function deleteImage(src) {
       chrome.storage.local.set({ disabledImages: [...disabledImages] });
     }
   } else if (isPredefinedImage(src)) {
+    kind = "predefined";
     disabledImages.add(src);
     chrome.storage.local.set(
       { disabledImages: [...disabledImages] },
@@ -346,6 +351,12 @@ function deleteImage(src) {
   } else {
     return;
   }
+
+  try {
+    if (window.track) {
+      window.track("image_deleted", { kind, from_page: "popup" });
+    }
+  } catch (_) { /* ignore */ }
 
   if (selectedSrc === src) selectedSrc = null;
   renderGallery();
@@ -370,15 +381,29 @@ function openModal(type) {
   modal.style.display = "flex";
   modalGallery.scrollTo({ top: 0 });
 
+  // `type` is the slot enum (welcome/navside/sidenav/chatview) — no UI text.
+  try {
+    if (window.track) window.track("image_modal_opened", { slot: type });
+  } catch (_) { /* ignore */ }
+
   chrome.storage.local.get([type], (result) => {
     if (result[type]) selectImageInGallery(result[type]);
   });
 }
 
-function closeModal() {
+// `outcome` is a fixed enum: saved | cleared | cancel | backdrop | esc.
+// "cancel" covers the explicit Cancel button; backdrop/esc paths aren't
+// wired today — left here so future shortcuts can plug in cleanly.
+function closeModal(outcome = "cancel") {
+  const slot = currentType;
   modal.style.display = "none";
   currentType = null;
   selectedSrc = null;
+  try {
+    if (slot && window.track) {
+      window.track("image_modal_closed", { slot, outcome });
+    }
+  } catch (_) { /* ignore */ }
 }
 
 const modalSaveBtn = document.getElementById("modal-save");
@@ -416,7 +441,7 @@ modalSaveBtn.addEventListener("click", async () => {
         window.track("background_slot_set", { slot, source });
       }
     } catch (e) { /* ignore */ }
-    closeModal();
+    closeModal("saved");
   } catch (err) {
     console.error("Failed to save image:", err);
     alert(
@@ -439,10 +464,10 @@ document.getElementById("modal-none").addEventListener("click", () => {
       if (window.track) window.track("background_slot_cleared", { slot });
     } catch (e) { /* ignore */ }
   }
-  closeModal();
+  closeModal("cleared");
 });
 
-document.getElementById("modal-cancel").addEventListener("click", closeModal);
+document.getElementById("modal-cancel").addEventListener("click", () => closeModal("cancel"));
 
 document.addEventListener("click", (e) => {
   const option = e.target.closest(".image-option[data-type]");
