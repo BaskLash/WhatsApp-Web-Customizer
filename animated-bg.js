@@ -42,7 +42,27 @@
     "beep_ghost",
     "tiffany_choong_stripes",
     "floating_bubbles",
+    "water_bubbles",
   ]);
+
+  // Post-install handlers for animations that need JS after their HTML is
+  // injected (CSS-only animations don't appear here). Each handler receives
+  // the container element AFTER innerHTML has been set, and may return a
+  // cleanup function — that cleanup is invoked before swapping to a new
+  // animation or removing the container, so listeners and rAF loops are
+  // released cleanly. Inline <script> in the animation HTML can't run
+  // (innerHTML doesn't execute scripts), so this registry is the only
+  // legal hook point.
+  const POST_INSTALL = {
+    water_bubbles: (container) => {
+      const ns = globalThis.WaterBubbles;
+      if (!ns || typeof ns.init !== "function") {
+        console.warn("[animated-bg] WaterBubbles namespace missing — is water-bubbles.js loaded before animated-bg.js?");
+        return null;
+      }
+      return ns.init(container);
+    },
+  };
 
   // Mirrors the reference extension's waitForElm(). One-shot — the observer
   // disconnects as soon as the element appears.
@@ -112,9 +132,24 @@
   // one's .then() sees a stale token and bails out — no flicker between
   // two animations.
   let applyToken = 0;
+  // Cleanup function returned by the previous animation's POST_INSTALL
+  // handler, if any. Called BEFORE the next innerHTML swap so the prior
+  // animation's listeners (resize, visibilitychange, …) and any rAF loop
+  // are released. CSS-only animations never set this.
+  let currentCleanup = null;
+
+  function runCleanup() {
+    if (typeof currentCleanup === "function") {
+      try { currentCleanup(); } catch (err) {
+        console.warn("[animated-bg] cleanup threw", err);
+      }
+    }
+    currentCleanup = null;
+  }
 
   function applyAnimation(id) {
     if (!id || !ALLOWED_IDS.has(id)) {
+      runCleanup();
       removeContainer();
       lastAppliedId = null;
       return;
@@ -138,11 +173,25 @@
     ])
       .then(([container, html]) => {
         if (myToken !== applyToken) return;
-        // Replacing innerHTML drops the previous animation's DOM (and any
-        // associated style/animation state with it). This is sufficient
-        // cleanup because the animations carry no JS state.
+        // Tear down the previous animation's JS (if any) BEFORE swapping
+        // markup. Once innerHTML is replaced the canvas is detached; the
+        // rAF loop self-terminates via isConnected, but window/document
+        // listeners would leak without an explicit cleanup call.
+        runCleanup();
+        // Replacing innerHTML drops the previous animation's DOM. For the
+        // CSS-only animations that's sufficient cleanup. For JS-driven
+        // ones, the post-install handler below boots the new one.
         container.innerHTML = html;
         lastAppliedId = id;
+        const handler = POST_INSTALL[id];
+        if (typeof handler === "function") {
+          try {
+            currentCleanup = handler(container) || null;
+          } catch (err) {
+            console.warn("[animated-bg] post-install failed for", id, err);
+            currentCleanup = null;
+          }
+        }
       })
       .catch((err) => {
         console.warn("[animated-bg] failed to load", id, err);

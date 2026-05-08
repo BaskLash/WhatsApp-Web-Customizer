@@ -1,0 +1,30 @@
+<!--
+  Water Bubbles — JS-driven canvas animation.
+  The rendering lives in water-bubbles.js (content script). This file
+  provides only the DOM target (a single <canvas>) and the static
+  gradient backdrop. animated-bg.js calls WaterBubbles.init(container)
+  after injecting this markup; the returned cleanup function is invoked
+  before the next animation is mounted (or when "None" is selected).
+-->
+<style>
+  .wb-stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 50% 60%,
+        #173e6c 0%,
+        #0a1c3a 55%,
+        #04101f 100%);
+  }
+  .wb-stage canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+</style>
+<div class="wb-stage">
+  <canvas id="wb-canvas"></canvas>
+</div>

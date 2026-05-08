@@ -32,6 +32,7 @@
         "themes-presets.js",
         "themes-content.js",
         "reviewPrompt.js",
+        "water-bubbles.js",
         "animated-bg.js",
         "content.js"
       ],
