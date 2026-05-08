@@ -11,7 +11,7 @@ Original code by Rosa Lui
        and also wipes background-color above, leaving the lamp fully
        transparent — the original symptom of "nothing happens on apply".
        Default = first color scheme from the reference's themes_data.json. */
-    background: var(--wac_custom_var_0, radial-gradient(ellipse at bottom, rgba(27, 39, 53, 1), rgba(9, 10, 15, 1)));
+    background: var(--wac_custom_var_0, radial-gradient(ellipse 80% 60% at 50% 100%, rgba(255, 140, 80, 0.35), rgba(27, 39, 53, 0.95) 45%, rgba(9, 10, 15, 1) 75%));
     position: absolute;
     top: 50%;
     left: 50%;
@@ -37,7 +37,8 @@ Original code by Rosa Lui
     border-radius: 50%;
     /* Same fallback rationale as .lamp above. Default = blob colour from
        the reference's first color scheme. */
-    background: var(--wac_custom_var_1, linear-gradient(#D461AC, #F67185));
+    background: var(--wac_custom_var_1, radial-gradient(circle at 35% 30%, #FF9BC8 0%, #D461AC 45%, #8B2A6E 100%));
+    box-shadow: inset -8px -12px 20px rgba(0, 0, 0, 0.25), inset 6px 8px 14px rgba(255, 255, 255, 0.15);
     /* Other sample colors:
     Orange: #e8630a
     Pink: #EA3281
@@ -79,6 +80,7 @@ Original code by Rosa Lui
     bottom:-15%;
    
     animation: wobble 16s ease-in-out alternate infinite, blob-one ease-in-out 52s infinite;
+    animation-delay: 0s, -18s;
   }
   .blob:nth-child(2){
     width: 330px;
@@ -87,17 +89,16 @@ Original code by Rosa Lui
     bottom:-65%;
     
     animation: wobble 20s ease-in-out alternate infinite, blob-two ease-in-out 88s infinite;
-   
-    
-  
+    animation-delay: -5s, -40s;
   }
-  .blob:nth-child(3){
+   .blob:nth-child(3){
     width: 150px;
     height: 150px;
     bottom:-15%;
     left: 34%;
     
     animation: wobble 24s ease-in-out alternate infinite, blob-three ease-in-out 64s infinite;
+    animation-delay: -10s, -8s;
   }
   .blob:nth-child(4){
     width: 235px;
@@ -105,14 +106,8 @@ Original code by Rosa Lui
     bottom:-19%;
     left: 30%;
     
-    animation: wobble 28s ease-in-out alternate infinite, blob-four ease-in-out 48s infinite;
-  }
-  .blob:nth-child(4){
-    width: 235px;
-    height: 235px;
-    bottom:-19%;
-    left: 30%;
-    animation: wobble 32s ease-in-out alternate infinite, blob-four ease-in-out 48s infinite;
+    animation: wobble 30s ease-in-out alternate infinite, blob-four ease-in-out 48s infinite;
+    animation-delay: -2s, -32s;
   }
   .blob:nth-child(5){
      width: 55px;
@@ -121,6 +116,7 @@ Original code by Rosa Lui
     left: 34%;
     
     animation: wobble 36s ease-in-out alternate infinite, blob-five ease-in-out 128s infinite;
+    animation-delay: -15s, -75s;
   }
   .blob:nth-child(6){
     width: 35px;
@@ -129,6 +125,7 @@ Original code by Rosa Lui
     right: 34%;
     
     animation:wobble 40s ease-in-out alternate infinite,  blob-six ease-in-out 48s infinite;
+    animation-delay: -20s, -22s;
   }
   .blob:nth-child(7){
     width: 435px;
@@ -137,6 +134,7 @@ Original code by Rosa Lui
     right: 40%;
     
     animation: wobble 44s ease-in-out alternate infinite, blob-seven ease-in-out 128s infinite;
+    animation-delay: -8s, -55s;
   }
   @keyframes blob-one{
     0%, 100%{
@@ -225,9 +223,9 @@ Original code by Rosa Lui
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1">
 <defs>
     <filter id="goo">
-    <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
-    <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
-    <feBlend in="SourceGraphic" in2="goo" />
+    <feGaussianBlur in="SourceGraphic" stdDeviation="18" result="blur" />
+    <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" result="goo" />
+    <feComposite in="SourceGraphic" in2="goo" operator="atop" />
     </filter>
 </defs>
 </svg>
