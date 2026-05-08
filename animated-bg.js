@@ -45,6 +45,7 @@
     "water_bubbles",
     "gradient_mesh",
     "liquid_marble",
+    "cozy_window",
   ]);
 
   // Post-install handlers for animations that need JS after their HTML is
@@ -76,6 +77,14 @@
       const ns = globalThis.LiquidMarble;
       if (!ns || typeof ns.init !== "function") {
         console.warn("[animated-bg] LiquidMarble namespace missing — is liquid-marble.js loaded before animated-bg.js?");
+        return null;
+      }
+      return ns.init(container);
+    },
+    cozy_window: (container) => {
+      const ns = globalThis.CozyWindow;
+      if (!ns || typeof ns.init !== "function") {
+        console.warn("[animated-bg] CozyWindow namespace missing — is cozy-window.js loaded before animated-bg.js?");
         return null;
       }
       return ns.init(container);

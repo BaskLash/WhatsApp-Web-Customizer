@@ -35,6 +35,7 @@
         "water-bubbles.js",
         "gradient-mesh.js",
         "liquid-marble.js",
+        "cozy-window.js",
         "animated-bg.js",
         "content.js"
       ],

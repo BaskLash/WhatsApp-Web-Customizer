@@ -1,0 +1,29 @@
+<!--
+  Cozy Window — vector-illustration cozy room scene.
+  Renderer lives in cozy-window.js (content script). This file provides
+  only the DOM target. The animation paints its own backdrop on the canvas;
+  the .cw-stage's background-color matches the night-sky default so any
+  brief flash before the first paint reads as the room rather than black.
+
+  No filter:blur or transform:scale on the canvas (lesson learned from
+  Gradient Mesh — those promote the canvas to a separate compositor
+  layer that renders invisibly inside WhatsApp Web's stacking context).
+-->
+<style>
+  .cw-stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background-color: #0A0E2A;   /* matches CONFIG.COLOR_NIGHT_SKY_TOP */
+  }
+  .cw-stage canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+</style>
+<div class="cw-stage">
+  <canvas id="cw-canvas"></canvas>
+</div>

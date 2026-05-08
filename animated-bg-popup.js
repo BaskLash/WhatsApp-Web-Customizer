@@ -28,6 +28,12 @@
       thumb: "backgrounds/animated/liquid_marble/thumbnail.svg",
     },
     {
+      id: "cozy_window",
+      title: "Cozy Window",
+      artist: "Bundled",
+      thumb: "backgrounds/animated/cozy_window/thumbnail.svg",
+    },
+    {
       id: "water_bubbles",
       title: "Water Bubbles",
       artist: "Bundled",
