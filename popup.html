@@ -29,6 +29,7 @@
         <script src="quick-replies.js" defer></script>
         <script src="themes-presets.js" defer></script>
         <script src="themes.js" defer></script>
+        <script src="animated-bg-popup.js" defer></script>
 
         <style>
             /* ---- Theme tokens ---- */
@@ -109,6 +110,103 @@
             }
             .form-range::-moz-range-thumb {
                 background: var(--wa-accent);
+            }
+
+            /* ---- Background sub-tabs (Static / Animated) ---- */
+            .bg-subtabs {
+                gap: 6px;
+                background: var(--wa-surface);
+                border: 1px solid var(--wa-border);
+                border-radius: 8px;
+                padding: 3px;
+            }
+            .bg-subtab {
+                flex: 1;
+                background: transparent;
+                color: var(--wa-muted);
+                border: none;
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 12px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: background 0.15s ease, color 0.15s ease;
+            }
+            .bg-subtab:hover {
+                color: var(--wa-text);
+            }
+            .bg-subtab.active {
+                background: var(--wa-accent);
+                color: #fff;
+            }
+
+            /* ---- Animated background gallery ---- */
+            .anim-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            .anim-card {
+                position: relative;
+                background: var(--wa-surface);
+                border: 1px solid var(--wa-border);
+                border-radius: 10px;
+                overflow: hidden;
+                cursor: pointer;
+                transition: border-color 0.2s ease, box-shadow 0.2s ease,
+                    transform 0.15s ease;
+            }
+            .anim-card:hover,
+            .anim-card:focus-visible {
+                border-color: var(--wa-accent);
+                box-shadow: var(--wa-glow);
+                transform: translateY(-1px);
+                outline: none;
+            }
+            .anim-card.active {
+                border-color: var(--wa-accent);
+                box-shadow: var(--wa-glow);
+            }
+            .anim-card.active::after {
+                content: "ACTIVE";
+                position: absolute;
+                top: 6px;
+                right: 6px;
+                font-size: 9px;
+                font-weight: 700;
+                letter-spacing: 1px;
+                padding: 2px 6px;
+                border-radius: 4px;
+                background: var(--wa-accent);
+                color: #fff;
+                z-index: 2;
+            }
+            .anim-thumb {
+                aspect-ratio: 16 / 9;
+                width: 100%;
+                background: var(--wa-bg) center / cover no-repeat;
+                display: block;
+            }
+            .anim-meta {
+                padding: 8px 10px;
+                font-size: 12px;
+                color: var(--wa-text);
+                font-weight: 500;
+            }
+            .anim-meta .anim-artist {
+                display: block;
+                font-size: 10px;
+                color: var(--wa-muted);
+                font-weight: 400;
+                margin-top: 2px;
+            }
+            .anim-card.anim-none .anim-thumb {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--wa-muted);
+                font-size: 12px;
+                background: var(--wa-bg);
             }
 
             /* ---- Background slot cards ---- */
@@ -543,6 +641,28 @@
 
                     <!-- ─────── BACKGROUNDS ─────── -->
                     <section class="tab-pane fade" id="tab-backgrounds">
+                        <!-- Sub-tab toggle: Static vs Animated. Two pills, simple
+                             show/hide of the panes below. JS lives at the bottom
+                             of popup.js (animated-bg-popup section). -->
+                        <div class="bg-subtabs d-flex mb-3" role="tablist">
+                            <button
+                                type="button"
+                                class="bg-subtab active"
+                                data-bg-subtab="bg-static"
+                                role="tab"
+                                aria-selected="true"
+                            >Static</button>
+                            <button
+                                type="button"
+                                class="bg-subtab"
+                                data-bg-subtab="bg-animated"
+                                role="tab"
+                                aria-selected="false"
+                            >Animated</button>
+                        </div>
+
+                        <!-- ── Static sub-tab (existing 4-slot grid) ── -->
+                        <div class="bg-subpane" id="bg-static">
                         <h2 class="section-label mb-2">Background slots</h2>
                         <p class="text-secondary small mb-3">
                             Each tile controls one part of WhatsApp Web. Click a tile to pick its image.
@@ -702,6 +822,16 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                        </div><!-- /#bg-static -->
+
+                        <!-- ── Animated sub-tab ── -->
+                        <div class="bg-subpane" id="bg-animated" hidden>
+                            <h2 class="section-label mb-2">Animated backgrounds</h2>
+                            <p class="text-secondary small mb-3">
+                                Pick an animation to play behind WhatsApp Web. Only one runs at a time.
+                            </p>
+                            <div class="anim-grid" id="anim-grid"></div>
                         </div>
                     </section>
 

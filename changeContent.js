@@ -119,6 +119,16 @@ body.dark div#main > header {
           main.style.backgroundImage = `url('${chatviewImage}')`;
           main.style.backgroundSize = "cover";
           main.style.backgroundPosition = "center";
+        } else if (main && main.style.backgroundImage) {
+          // Slot is empty (cleared via the modal "None" button or auto-cleared
+          // when an animated background is applied). Drop the inline image we
+          // previously installed so the underlying surface — or the animation
+          // wrapper rendered by animated-bg.js — becomes visible immediately.
+          // Guarded by `main.style.backgroundImage` so we don't churn styles
+          // on every 500ms tick after the first cleanup.
+          main.style.backgroundImage = "";
+          main.style.backgroundSize = "";
+          main.style.backgroundPosition = "";
         }
 
         // Welcome Page

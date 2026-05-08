@@ -1,0 +1,53 @@
+<!--
+  Floating Bubbles — original to WhatsApp Web Customizer.
+  CSS-only, no SVG, no JS. 12 absolutely-positioned circles drift upward
+  on staggered durations and blend together via mix-blend-mode: screen,
+  giving a soft lava-lamp-like effect without the gooey-filter cost.
+  Each bubble defines its own size, hue, x-position, duration and delay
+  inline so the CSS rules stay minimal.
+-->
+<style>
+  .fb-stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: linear-gradient(180deg, #0b1726 0%, #1f3354 50%, #2a5298 100%);
+  }
+  .fb-bubble {
+    position: absolute;
+    bottom: -160px;
+    border-radius: 50%;
+    mix-blend-mode: screen;
+    opacity: 0;
+    animation-name: fb-rise, fb-sway;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear, ease-in-out;
+    will-change: transform, opacity;
+  }
+  @keyframes fb-rise {
+    0%   { transform: translate3d(0, 0, 0)         scale(0.85); opacity: 0; }
+    8%   { opacity: 0.55; }
+    50%  { opacity: 0.7; }
+    92%  { opacity: 0.45; }
+    100% { transform: translate3d(0, -120vh, 0)    scale(1.1);  opacity: 0; }
+  }
+  @keyframes fb-sway {
+    0%, 100% { margin-left: 0; }
+    50%      { margin-left: 28px; }
+  }
+</style>
+
+<div class="fb-stage">
+  <div class="fb-bubble" style="left:6%;  width:90px;  height:90px;  background: radial-gradient(circle at 30% 30%, #5fb3ff, #1e62b0);  animation-duration: 22s, 9s;  animation-delay:  0s,    0s;"></div>
+  <div class="fb-bubble" style="left:18%; width:55px;  height:55px;  background: radial-gradient(circle at 30% 30%, #7ce0ff, #3589c9);  animation-duration: 16s, 7s;  animation-delay: -4s,   -2s;"></div>
+  <div class="fb-bubble" style="left:30%; width:120px; height:120px; background: radial-gradient(circle at 30% 30%, #ffb1d8, #c93d8a);  animation-duration: 28s, 11s; animation-delay: -10s,  -1s;"></div>
+  <div class="fb-bubble" style="left:42%; width:70px;  height:70px;  background: radial-gradient(circle at 30% 30%, #c0a9ff, #6d4fce);  animation-duration: 20s, 8s;  animation-delay: -14s,  -3s;"></div>
+  <div class="fb-bubble" style="left:54%; width:45px;  height:45px;  background: radial-gradient(circle at 30% 30%, #fff1a8, #d8a235);  animation-duration: 14s, 6s;  animation-delay:  -2s,  -4s;"></div>
+  <div class="fb-bubble" style="left:62%; width:100px; height:100px; background: radial-gradient(circle at 30% 30%, #a3f0d7, #2d9479);  animation-duration: 24s, 10s; animation-delay:  -8s,   0s;"></div>
+  <div class="fb-bubble" style="left:74%; width:60px;  height:60px;  background: radial-gradient(circle at 30% 30%, #ffc7a8, #d76a3e);  animation-duration: 18s, 7s;  animation-delay: -16s,  -2s;"></div>
+  <div class="fb-bubble" style="left:84%; width:80px;  height:80px;  background: radial-gradient(circle at 30% 30%, #b0c8ff, #4267c8);  animation-duration: 26s, 9s;  animation-delay:  -6s,  -5s;"></div>
+  <div class="fb-bubble" style="left:12%; width:30px;  height:30px;  background: radial-gradient(circle at 30% 30%, #ffffff, #b0c8ff);  animation-duration: 12s, 5s;  animation-delay: -11s,  -3s;"></div>
+  <div class="fb-bubble" style="left:46%; width:35px;  height:35px;  background: radial-gradient(circle at 30% 30%, #ffffff, #c0a9ff);  animation-duration: 13s, 5s;  animation-delay: -19s,  -1s;"></div>
+  <div class="fb-bubble" style="left:68%; width:28px;  height:28px;  background: radial-gradient(circle at 30% 30%, #ffffff, #a3f0d7);  animation-duration: 11s, 4s;  animation-delay:  -3s,  -4s;"></div>
+  <div class="fb-bubble" style="left:90%; width:32px;  height:32px;  background: radial-gradient(circle at 30% 30%, #ffffff, #ffb1d8);  animation-duration: 15s, 6s;  animation-delay: -13s,  -2s;"></div>
+</div>

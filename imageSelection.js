@@ -432,13 +432,36 @@ modalSaveBtn.addEventListener("click", async () => {
       chrome.storage.local.set({ [slot]: dataUrl }, resolve),
     );
     setPreview(slot, dataUrl);
+
+    // Animated→Static mutex: only the chatview slot conflicts with an
+    // animated background (both target the same area behind the chat).
+    // If an animation is currently active, clear it now so the static
+    // image takes over cleanly. animated-bg.js's storage.onChanged listener
+    // will tear down the bg container and stop the running animation.
+    let replacedAnimation = false;
+    if (slot === "chatview") {
+      const snapshot = await new Promise((resolve) =>
+        chrome.storage.local.get(["animated_background"], resolve),
+      );
+      if (snapshot.animated_background) {
+        replacedAnimation = true;
+        await new Promise((resolve) =>
+          chrome.storage.local.remove("animated_background", resolve),
+        );
+      }
+    }
+
     // Analytics: slot is the fixed enum (welcome/navside/sidenav/chatview).
     // `source` is derived structurally from the library — we never look at
     // the URL or filename itself.
     try {
       if (window.track) {
         const source = isUserImage(src) ? "uploaded" : "predefined";
-        window.track("background_slot_set", { slot, source });
+        const props = { slot, source };
+        // Only meaningful for chatview; included unconditionally because
+        // the property is structural (boolean, fixed name, no PII).
+        if (slot === "chatview") props.replaced_animation = replacedAnimation;
+        window.track("background_slot_set", props);
       }
     } catch (e) { /* ignore */ }
     closeModal("saved");

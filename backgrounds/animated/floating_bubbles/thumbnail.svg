@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0b1726"/>
+      <stop offset="50%" stop-color="#1f3354"/>
+      <stop offset="100%" stop-color="#2a5298"/>
+    </linearGradient>
+    <radialGradient id="b1" cx="30%" cy="30%"><stop offset="0%" stop-color="#5fb3ff"/><stop offset="100%" stop-color="#1e62b0"/></radialGradient>
+    <radialGradient id="b2" cx="30%" cy="30%"><stop offset="0%" stop-color="#ffb1d8"/><stop offset="100%" stop-color="#c93d8a"/></radialGradient>
+    <radialGradient id="b3" cx="30%" cy="30%"><stop offset="0%" stop-color="#a3f0d7"/><stop offset="100%" stop-color="#2d9479"/></radialGradient>
+    <radialGradient id="b4" cx="30%" cy="30%"><stop offset="0%" stop-color="#fff1a8"/><stop offset="100%" stop-color="#d8a235"/></radialGradient>
+    <radialGradient id="b5" cx="30%" cy="30%"><stop offset="0%" stop-color="#c0a9ff"/><stop offset="100%" stop-color="#6d4fce"/></radialGradient>
+  </defs>
+  <rect width="160" height="90" fill="url(#bg)"/>
+  <g style="mix-blend-mode:screen;opacity:0.85">
+    <circle cx="22"  cy="58" r="12" fill="url(#b1)"/>
+    <circle cx="50"  cy="34" r="16" fill="url(#b2)"/>
+    <circle cx="80"  cy="62" r="9"  fill="url(#b4)"/>
+    <circle cx="100" cy="40" r="14" fill="url(#b3)"/>
+    <circle cx="130" cy="55" r="11" fill="url(#b5)"/>
+    <circle cx="40"  cy="72" r="4"  fill="#fff" opacity="0.7"/>
+    <circle cx="115" cy="20" r="3"  fill="#fff" opacity="0.6"/>
+  </g>
+</svg>
