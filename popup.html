@@ -707,24 +707,40 @@
 
                     <!-- ─────── THEMES ─────── -->
                     <section class="tab-pane fade" id="tab-themes">
-                        <h2 class="section-label mb-2">Preset themes</h2>
+                        <!-- Toolbar row: section header on the left, actions on the right.
+                             Mirrors the always-visible action affordance the Backgrounds
+                             tab gets from its tile grid — Manage Items and Reset are now
+                             above the fold, no scrolling needed. -->
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <h2 class="section-label m-0">Themes</h2>
+                            <div class="d-flex gap-2">
+                                <button id="open-theme-manager" type="button" class="btn btn-sm btn-success">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2.5"
+                                        stroke-linecap="round" stroke-linejoin="round"
+                                        style="margin-right:4px;vertical-align:-1px;">
+                                        <line x1="12" y1="5" x2="12" y2="19" />
+                                        <line x1="5" y1="12" x2="19" y2="12" />
+                                    </svg>
+                                    Manage Items
+                                </button>
+                                <button id="reset-theme" type="button" class="btn btn-sm btn-outline-secondary">
+                                    Reset
+                                </button>
+                            </div>
+                        </div>
                         <p class="text-secondary small mb-3">
-                            Click any preset to apply it instantly to WhatsApp Web.
+                            Click any theme below to apply it instantly. Use
+                            <strong>Manage Items</strong> to import your own,
+                            or <strong>Reset</strong> to revert to WhatsApp's default.
                         </p>
+
+                        <h3 class="section-label mb-2">Presets</h3>
                         <div class="row g-2" id="theme-presets-grid"></div>
 
                         <div id="theme-customs-wrap" style="display: none">
-                            <h2 class="section-label mt-4 mb-2">Your custom themes</h2>
+                            <h3 class="section-label mt-3 mb-2">Your custom themes</h3>
                             <div class="row g-2" id="theme-customs-grid"></div>
-                        </div>
-
-                        <div class="d-flex gap-2 mt-4">
-                            <button id="open-theme-manager" type="button" class="btn btn-success flex-grow-1">
-                                Manage Items
-                            </button>
-                            <button id="reset-theme" type="button" class="btn btn-outline-secondary">
-                                Reset
-                            </button>
                         </div>
                     </section>
 
