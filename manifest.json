@@ -34,6 +34,7 @@
         "reviewPrompt.js",
         "water-bubbles.js",
         "gradient-mesh.js",
+        "liquid-marble.js",
         "animated-bg.js",
         "content.js"
       ],

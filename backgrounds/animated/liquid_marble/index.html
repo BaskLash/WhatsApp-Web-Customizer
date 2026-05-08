@@ -1,0 +1,28 @@
+<!--
+  Liquid Marble — organic ink-in-water flow.
+  Renderer lives in liquid-marble.js (content script). This file only
+  provides the DOM target and the matching backdrop colour so there's no
+  visible flash of the wrong colour before the first frame paints.
+
+  No filter:blur or transform:scale on the canvas — those promote the
+  canvas to its own compositor layer, which renders invisibly inside
+  WhatsApp Web's stacking context (lesson learned from Gradient Mesh).
+-->
+<style>
+  .lm-stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background-color: #0A0E1A;   /* matches CONFIG.BACKGROUND_COLOR default */
+  }
+  .lm-stage canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+</style>
+<div class="lm-stage">
+  <canvas id="lm-canvas"></canvas>
+</div>

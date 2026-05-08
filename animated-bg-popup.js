@@ -22,6 +22,12 @@
       thumb: "backgrounds/animated/gradient_mesh/thumbnail.svg",
     },
     {
+      id: "liquid_marble",
+      title: "Liquid Marble",
+      artist: "Bundled",
+      thumb: "backgrounds/animated/liquid_marble/thumbnail.svg",
+    },
+    {
       id: "water_bubbles",
       title: "Water Bubbles",
       artist: "Bundled",

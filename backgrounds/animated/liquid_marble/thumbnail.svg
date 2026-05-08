@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="lm-a" cx="22%" cy="35%" r="70%">
+      <stop offset="0%"  stop-color="#1B3A6B" stop-opacity="0.85"/>
+      <stop offset="50%" stop-color="#1B3A6B" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#1B3A6B" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="lm-b" cx="62%" cy="22%" r="70%">
+      <stop offset="0%"  stop-color="#3E1F5C" stop-opacity="0.80"/>
+      <stop offset="50%" stop-color="#3E1F5C" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#3E1F5C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="lm-c" cx="80%" cy="65%" r="70%">
+      <stop offset="0%"  stop-color="#6B1F4E" stop-opacity="0.80"/>
+      <stop offset="50%" stop-color="#6B1F4E" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#6B1F4E" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="lm-d" cx="35%" cy="78%" r="70%">
+      <stop offset="0%"  stop-color="#0F4C5C" stop-opacity="0.80"/>
+      <stop offset="50%" stop-color="#0F4C5C" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#0F4C5C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="lm-e" cx="55%" cy="55%" r="55%">
+      <stop offset="0%"  stop-color="#5C2A3F" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#5C2A3F" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="lm-blur" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+  </defs>
+  <rect width="160" height="90" fill="#0A0E1A"/>
+  <g filter="url(#lm-blur)">
+    <rect width="160" height="90" fill="url(#lm-a)"/>
+    <rect width="160" height="90" fill="url(#lm-b)"/>
+    <rect width="160" height="90" fill="url(#lm-c)"/>
+    <rect width="160" height="90" fill="url(#lm-d)"/>
+    <rect width="160" height="90" fill="url(#lm-e)"/>
+  </g>
+</svg>

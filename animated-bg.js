@@ -44,6 +44,7 @@
     "floating_bubbles",
     "water_bubbles",
     "gradient_mesh",
+    "liquid_marble",
   ]);
 
   // Post-install handlers for animations that need JS after their HTML is
@@ -67,6 +68,14 @@
       const ns = globalThis.GradientMesh;
       if (!ns || typeof ns.init !== "function") {
         console.warn("[animated-bg] GradientMesh namespace missing — is gradient-mesh.js loaded before animated-bg.js?");
+        return null;
+      }
+      return ns.init(container);
+    },
+    liquid_marble: (container) => {
+      const ns = globalThis.LiquidMarble;
+      if (!ns || typeof ns.init !== "function") {
+        console.warn("[animated-bg] LiquidMarble namespace missing — is liquid-marble.js loaded before animated-bg.js?");
         return null;
       }
       return ns.init(container);
