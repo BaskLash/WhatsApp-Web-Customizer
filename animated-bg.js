@@ -43,6 +43,7 @@
     "tiffany_choong_stripes",
     "floating_bubbles",
     "water_bubbles",
+    "gradient_mesh",
   ]);
 
   // Post-install handlers for animations that need JS after their HTML is
@@ -58,6 +59,14 @@
       const ns = globalThis.WaterBubbles;
       if (!ns || typeof ns.init !== "function") {
         console.warn("[animated-bg] WaterBubbles namespace missing — is water-bubbles.js loaded before animated-bg.js?");
+        return null;
+      }
+      return ns.init(container);
+    },
+    gradient_mesh: (container) => {
+      const ns = globalThis.GradientMesh;
+      if (!ns || typeof ns.init !== "function") {
+        console.warn("[animated-bg] GradientMesh namespace missing — is gradient-mesh.js loaded before animated-bg.js?");
         return null;
       }
       return ns.init(container);

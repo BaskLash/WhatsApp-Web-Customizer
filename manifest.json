@@ -33,6 +33,7 @@
         "themes-content.js",
         "reviewPrompt.js",
         "water-bubbles.js",
+        "gradient-mesh.js",
         "animated-bg.js",
         "content.js"
       ],

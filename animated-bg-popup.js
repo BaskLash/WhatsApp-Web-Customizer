@@ -16,6 +16,12 @@
   // `thumb` is relative to the extension root; `chrome.runtime.getURL` resolves it.
   const ANIMATIONS = [
     {
+      id: "gradient_mesh",
+      title: "Gradient Mesh",
+      artist: "Bundled",
+      thumb: "backgrounds/animated/gradient_mesh/thumbnail.svg",
+    },
+    {
       id: "water_bubbles",
       title: "Water Bubbles",
       artist: "Bundled",

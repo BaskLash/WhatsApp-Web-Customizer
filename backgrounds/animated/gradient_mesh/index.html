@@ -1,0 +1,31 @@
+<!--
+  Gradient Mesh — Telegram-style morphing 4-color gradient.
+  The renderer lives in gradient-mesh.js (content script).
+
+  Earlier revision used a 128×128 bitmap + CSS filter:blur + transform:scale
+  to upscale to a smooth mesh on the GPU. That rendered invisibly inside
+  WhatsApp Web's stacking context — the filter+transform combo promotes the
+  canvas to its own compositor layer, and that layer interacts badly with
+  the host page's surfaces and our `transform:none` rule on #main. We now
+  render at the canvas's full CSS size, matching water-bubbles' working
+  pattern exactly. Smoothness comes from the browser's gradient rasterizer
+  at full resolution, no CSS filter needed.
+-->
+<style>
+  .gm-stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background-color: #0F1419;   /* fallback before first paint */
+  }
+  .gm-stage canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+</style>
+<div class="gm-stage">
+  <canvas id="gm-canvas"></canvas>
+</div>
