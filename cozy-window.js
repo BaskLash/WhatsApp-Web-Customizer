@@ -306,21 +306,14 @@
 
   // ── Layout math ──────────────────────────────────────────────────────────
 
+    // ── Layout math ──────────────────────────────────────────────────────────
+    // ── Layout math ──────────────────────────────────────────────────────────
   function computeLayout(w, h) {
     const minDim = Math.min(w, h);
     const frameThickness = Math.max(4, 0.02 * minDim);
     const deskY = 0.82 * h;
 
-    // ── Lamp anatomy (built bottom-up from the desk) ──
-    // Vertical stack (smaller y = higher):
-    //   shadeTopY    ─── ┐
-    //                    │ shade (trapezoid)
-    //   shadeBottomY ─── ┘
-    //                      bulb (drawn BEFORE shade — top half hidden by it)
-    //                    │ neck (vertical rectangle)
-    //   neckBottomY  ─── │ = baseTopY
-    //                    │ base (low trapezoid)
-    //   baseBottomY  ─── ┘ = deskY
+    // ── Lamp anatomy (bottom-up) ──
     const bulbX = 0.83 * w;
     const bulbR = Math.max(4, 0.012 * h);
 
@@ -330,16 +323,13 @@
     const baseBottomW = Math.max(40, 0.065 * w);
     const baseTopW = Math.max(28, 0.045 * w);
 
-    const neckH = Math.max(40, 0.12 * h);
+    // ── Stark verlängerte Haltestange ──
+    const neckH = Math.max(68, 0.19 * h);      // deutlich länger
     const neckBottomY = baseTopY;
     const neckTopY = neckBottomY - neckH;
-    // Pole thickness: previous value (0.01 * w → ~12px on a 1200px canvas)
-    // was visually invisible against the dark scene — read as a thin line
-    // and got swallowed by the warm lamp glow. Bumped to 0.022 * w so the
-    // pole is roughly 1/3 the width of the lampshade bottom, which is the
-    // standard "looks like a real desk lamp" proportion. Floor of 10px so
-    // the pole stays visible on small canvas sizes too.
-    const neckW = Math.max(10, 0.022 * w);
+
+    // Deutliche Breite der Stange
+    const neckW = Math.max(17, 0.034 * w);
 
     const shadeH = Math.max(28, 0.08 * h);
     const shadeBottomY = neckTopY;
@@ -347,36 +337,18 @@
     const shadeBottomW = Math.max(28, 0.05 * w);
     const shadeTopW = Math.max(14, 0.025 * w);
 
-    // Bulb sits with center slightly above shadeBottomY, so its top half is
-    // inside the shade silhouette. The shade is drawn AFTER the bulb,
-    // hiding the upper portion. Glow center is at this bulbY so the radial
-    // wash emanates from the visible bulb.
-    const bulbY = shadeBottomY - bulbR * 0.2;
+    // Bulb
+    const bulbY = shadeBottomY - bulbR * 0.15;
 
-    // ── Figure anatomy ──
-    // Generic person seen from BACK, head bent over the desk, hair tied up,
-    // headphones on. Positioned slightly left of center so the lamp (right
-    // side) rim-lights her shoulder/head edge.
-    //
-    // Vertical structure (top → bottom):
-    //   bun on top of head
-    //   head (with headphone band crossing the top, ear cups on sides)
-    //   shoulders (hoodie/sweater shape, sloping outward)
-    //   torso continues off the bottom of the canvas
-    //
-    // The figure sits in front of the desk, occluding the desk's front edge
-    // and parts of the lower window panes. Her upper body extends up into
-    // the lower-left pane area.
-    const figCx = 0.42 * w;            // center x — left of window center
-    const headCy = 0.62 * h;            // head center y — in lower-left pane area
-    const headR  = Math.max(28, 0.075 * h); // head radius (roughly 7.5% canvas h)
-    // Shoulders: torso silhouette starts where neck meets shoulders, slopes
-    // outward to the figure's full shoulder width, then the shoulders extend
-    // off-canvas (sweater lower half not drawn — out of frame below).
+    // ── Figure anatomy ── (unverändert)
+    const figCx = 0.42 * w;
+    const headCy = 0.62 * h;
+    const headR = Math.max(28, 0.075 * h);
+
     const neckY = headCy + headR * 0.95;
     const shoulderY = headCy + headR * 1.4;
-    const shoulderHalfW = headR * 2.6;  // shoulder span ~5.2× head radius
-    const torsoBottomY = h + 4;         // extends just past canvas bottom
+    const shoulderHalfW = headR * 2.6;
+    const torsoBottomY = h + 4;
 
     return {
       w: w,
@@ -411,16 +383,12 @@
         baseBottomW: baseBottomW,
         glowRadius: CONFIG.LAMP_GLOW_RADIUS_FACTOR * w,
       },
-      // Book: nudged right (closer to figure's left forearm area) and
-      // upsized so it reads as a book at typical canvas dimensions.
       book: {
         x: 0.30 * w,
         topY: deskY - 0.030 * h,
         w: 0.075 * w,
         h: 0.030 * h,
       },
-      // Mug: between figure (right shoulder area) and lamp base. Steam
-      // emits straight up from cx with a tiny sine drift in step().
       mug: {
         cx: 0.66 * w,
         topY: deskY - 0.050 * h,
@@ -432,9 +400,7 @@
         headCy: headCy,
         headR: headR,
         bunCy: headCy - headR * 0.85,
-        bunR:  headR * 0.50,
-        // Headphone band: thin arc across the top of the head.
-        // Ear cups: small ellipses on the sides at headphone-cup height.
+        bunR: headR * 0.50,
         headphoneCupR: headR * 0.30,
         headphoneCupCy: headCy - headR * 0.05,
         neckY: neckY,
@@ -558,11 +524,12 @@
   // hides the upper half of the bulb. Previously the bulb was drawn last
   // (on top of the shade) so it sat in front of the shade outline rather
   // than peeking out from under it.
-  function drawLamp(o, layout, palette) {
+      function drawLamp(o, layout, palette) {
     const L = layout.lamp;
+    
     o.fillStyle = palette.lampBody;
 
-    // 1. Base.
+    // 1. Base
     o.beginPath();
     o.moveTo(L.bulbX - L.baseTopW / 2, L.baseTopY);
     o.lineTo(L.bulbX + L.baseTopW / 2, L.baseTopY);
@@ -571,17 +538,28 @@
     o.closePath();
     o.fill();
 
-    // 2. Neck.
-    o.fillRect(L.bulbX - L.neckW / 2, L.neckTopY, L.neckW, L.neckH);
+    // 2. Haltestange (Pole) mit 3D-Effekt
+    const poleLeft = L.bulbX - L.neckW / 2;
+    
+    // Hauptstange
+    o.fillRect(poleLeft, L.neckTopY, L.neckW, L.neckH);
 
-    // 3. Bulb — drawn BEFORE the shade. The shade will cover its upper half.
+    // Linke Schattenkante
+    o.fillStyle = "#6B5A32";
+    o.fillRect(poleLeft, L.neckTopY, Math.max(4, L.neckW * 0.22), L.neckH);
+
+    // Rechte Highlight-Kante (fängt Lampenlicht ein)
+    o.fillStyle = "#B89A6A";
+    o.fillRect(L.bulbX + L.neckW/2 - Math.max(4, L.neckW * 0.25), 
+               L.neckTopY, Math.max(4, L.neckW * 0.25), L.neckH);
+
+    // 3. Bulb
     o.fillStyle = palette.lampBulb;
     o.beginPath();
     o.arc(L.bulbX, L.bulbY, L.bulbR, 0, Math.PI * 2);
     o.fill();
 
-    // 4. Shade — drawn AFTER the bulb, hiding the bulb's upper half and
-    //    leaving only the bottom crescent visible below shadeBottomY.
+    // 4. Shade
     o.fillStyle = palette.lampBody;
     o.beginPath();
     o.moveTo(L.bulbX - L.shadeTopW / 2, L.shadeTopY);
@@ -591,10 +569,10 @@
     o.closePath();
     o.fill();
 
-    // 5. Inner-bottom warm spill on the shade.
+    // Shade inner glow
     const shadeGrad = o.createLinearGradient(L.bulbX, L.shadeTopY, L.bulbX, L.shadeBottomY);
     shadeGrad.addColorStop(0, "rgba(255, 200, 130, 0)");
-    shadeGrad.addColorStop(1, "rgba(255, 200, 130, 0.30)");
+    shadeGrad.addColorStop(1, "rgba(255, 200, 130, 0.32)");
     o.fillStyle = shadeGrad;
     o.beginPath();
     o.moveTo(L.bulbX - L.shadeTopW / 2, L.shadeTopY);

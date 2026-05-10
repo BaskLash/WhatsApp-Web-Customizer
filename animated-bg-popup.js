@@ -12,6 +12,16 @@
 (function () {
   const STORAGE_KEY = "animated_background";
 
+  // Analytics helper — single point so the try/catch lives in one place and
+  // the call sites stay readable. Property values everywhere in this file are
+  // either fixed-enum strings (registry ids/titles/artists, hardcoded subtab
+  // ids) or booleans, so no privacy review needed per call site.
+  function safeTrack(event, props) {
+    try {
+      if (window.track) window.track(event, props || {});
+    } catch (_) { /* analytics must never break the popup */ }
+  }
+
   // Registry. Order = display order in the gallery.
   // `thumb` is relative to the extension root; `chrome.runtime.getURL` resolves it.
   const ANIMATIONS = [
@@ -71,6 +81,23 @@
     },
   ];
 
+  // O(1) lookup so analytics events can include the human-readable title and
+  // artist alongside the id. Both values are bundled metadata — no PII.
+  const ANIM_BY_ID = new Map(ANIMATIONS.map((a) => [a.id, a]));
+
+  // Currently-applied animation id (null when none/cleared). Mirrors what's
+  // in chrome.storage.local["animated_background"] and is updated both when
+  // the user selects in this popup AND when storage changes elsewhere. Used
+  // to populate `previous_id` and `is_reselect` on analytics events without
+  // an extra storage read per click.
+  let currentAnimId = null;
+
+  // Per-popup-session de-dup for the "first time the Animated subtab was
+  // opened" event. Lets us measure how many popup sessions ever surface the
+  // animation gallery without inflating from users who toggle Static↔Animated
+  // back and forth.
+  const seenSubtabs = new Set();
+
   // ── Sub-tab toggle ────────────────────────────────────────────────────────
 
   function activateSubtab(target, fireAnalytics) {
@@ -88,14 +115,25 @@
     });
 
     if (fireAnalytics && previous && previous !== target) {
-      try {
-        if (window.track) {
-          window.track("backgrounds_subtab_changed", {
-            from: previous,
-            to: target,
-          });
-        }
-      } catch (_) { /* ignore */ }
+      safeTrack("backgrounds_subtab_changed", {
+        from: previous,
+        to: target,
+      });
+    }
+    if (fireAnalytics) maybeFireSubtabFirstSeen(target);
+  }
+
+  function maybeFireSubtabFirstSeen(target) {
+    if (!target || seenSubtabs.has(target)) return;
+    seenSubtabs.add(target);
+    if (target === "bg-animated") {
+      // Counts unique popup sessions where the user actually engaged with
+      // the Animated gallery (not just had it as the active subtab). Pairs
+      // with `animated_background_set` to compute a discovery→apply funnel.
+      safeTrack("animated_subtab_opened", {
+        has_active_animation: !!currentAnimId,
+        active_animation_id: currentAnimId || null,
+      });
     }
   }
 
@@ -159,16 +197,28 @@
     return card;
   }
 
-  function applySelection(animId) {
+  function applySelection(animId, source) {
+    const previousId = currentAnimId;
+    const previousMeta = previousId ? ANIM_BY_ID.get(previousId) : null;
+
     if (!animId) {
       chrome.storage.local.remove(STORAGE_KEY, () => {
-        try {
-          if (window.track) window.track("animated_background_cleared");
-        } catch (_) { /* ignore */ }
+        // Includes previous_* so analytics can answer "which animations do
+        // users abandon?" — the cleared event was previously a bare ping.
+        safeTrack("animated_background_cleared", {
+          previous_id: previousId || null,
+          previous_name: previousMeta ? previousMeta.title : null,
+          previous_artist: previousMeta ? previousMeta.artist : null,
+          source: source || "gallery_click",
+        });
       });
+      currentAnimId = null;
       setActiveCard(null);
       return;
     }
+
+    const isReselect = animId === previousId;
+    const meta = ANIM_BY_ID.get(animId);
 
     // Mirrors the static chat-view flow: only one chat-view backdrop runs
     // at a time. If a static image is currently set in the chatview slot,
@@ -181,17 +231,27 @@
 
       const writeAnimation = () => {
         chrome.storage.local.set({ [STORAGE_KEY]: { id: animId } }, () => {
-          try {
-            if (window.track) {
-              window.track("animated_background_set", {
-                id: animId,
-                // Lets analytics distinguish "first-time apply" vs.
-                // "user replaced an existing static chat-view image".
-                replaced_static_chatview: hadStaticChatview,
-              });
-            }
-          } catch (_) { /* ignore */ }
+          safeTrack("animated_background_set", {
+            id: animId,
+            name: meta ? meta.title : null,
+            artist: meta ? meta.artist : null,
+            // Prior animation id (or null on first apply / after a clear).
+            // Pairs with `id` to model selection journeys without join logic.
+            previous_id: previousId || null,
+            // Same id selected again — the user re-applied the active card.
+            // Useful for filtering "true switch" events out of frequency
+            // counts so a single popular animation doesn't get inflated by
+            // accidental double-clicks.
+            is_reselect: isReselect,
+            // Lets analytics distinguish "first-time apply" vs.
+            // "user replaced an existing static chat-view image".
+            replaced_static_chatview: hadStaticChatview,
+            // Input modality: lets us see how often the gallery is operated
+            // via keyboard (accessibility signal).
+            source: source || "gallery_click",
+          });
         });
+        currentAnimId = animId;
         setActiveCard(animId);
       };
 
@@ -222,7 +282,7 @@
   function onCardClick(e) {
     const card = e.target.closest(".anim-card");
     if (!card) return;
-    applySelection(card.dataset.animId || null);
+    applySelection(card.dataset.animId || null, "gallery_click");
   }
 
   function onCardKeydown(e) {
@@ -230,7 +290,7 @@
     const card = e.target.closest(".anim-card");
     if (!card) return;
     e.preventDefault();
-    applySelection(card.dataset.animId || null);
+    applySelection(card.dataset.animId || null, "gallery_keyboard");
   }
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
@@ -243,6 +303,7 @@
     chrome.storage.local.get([STORAGE_KEY], (result) => {
       const stored = result[STORAGE_KEY];
       const activeId = stored && typeof stored.id === "string" ? stored.id : null;
+      currentAnimId = activeId;
       renderGallery(activeId);
     });
 
@@ -251,6 +312,7 @@
       if (area !== "local" || !changes[STORAGE_KEY]) return;
       const next = changes[STORAGE_KEY].newValue;
       const activeId = next && typeof next.id === "string" ? next.id : null;
+      currentAnimId = activeId;
       setActiveCard(activeId);
     });
   });

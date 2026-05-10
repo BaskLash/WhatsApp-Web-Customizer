@@ -26,6 +26,15 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         if (window.track) window.track("quick_replies_preview_seen");
       } catch (_) { /* ignore */ }
+    } else if (tab === "tab-backgrounds") {
+      // Once-per-popup-session counter for Backgrounds-tab interest.
+      // The granular Static/Animated subtab opens are tracked separately
+      // by animated-bg-popup.js (`backgrounds_subtab_changed`,
+      // `animated_subtab_opened`), so this event answers the higher-level
+      // question "did this popup session ever land on Backgrounds at all?"
+      try {
+        if (window.track) window.track("backgrounds_tab_opened");
+      } catch (_) { /* ignore */ }
     }
   }
 

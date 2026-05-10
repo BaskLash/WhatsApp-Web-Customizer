@@ -100,9 +100,16 @@ try {
       "privacyMode",
       "quickReplies",
       "visibilityOptions",
+      "animated_background",
     ],
     (r) => {
       const visibility = r.visibilityOptions || {};
+      // Animated background fingerprint: lets us answer "what share of
+      // popup-opening users currently have an animation set?" passively,
+      // without depending on a fresh selection event during the session.
+      // The id is a fixed enum from animated-bg.js's ALLOWED_IDS — no PII.
+      const animBg = r.animated_background;
+      const animatedId = animBg && typeof animBg.id === "string" ? animBg.id : null;
       const props = {
         has_active_theme: !!(r["themes:active"] && r["themes:active"].id),
         has_any_slot: !!(r.welcome || r.navside || r.sidenav || r.chatview),
@@ -115,6 +122,8 @@ try {
         visibility_communities: !!visibility.communities,
         visibility_locked_chats: !!visibility.lockedChats,
         visibility_archived: !!visibility.archived,
+        has_animated_background: !!animatedId,
+        animated_background_id: animatedId,
       };
       try { window.track && window.track("popup_opened", props); } catch (_) { /* ignore */ }
     },
