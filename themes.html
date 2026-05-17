@@ -270,48 +270,136 @@
                 letter-spacing: 0.6px; margin: 18px 0 8px;
                 padding-bottom: 6px; border-bottom: 1px solid var(--border-color);
             }
+            .var-subgroup-label {
+                font-size: 11px; font-weight: 600; color: var(--muted-color);
+                text-transform: uppercase; letter-spacing: 0.5px;
+                margin: 14px 0 6px;
+            }
 
-            .var-row {
-                display: grid;
-                grid-template-columns: 200px 28px 1fr 36px;
-                gap: 10px; align-items: center;
-                padding: 8px 0;
-            }
-            .var-row label {
-                font-size: 13px; color: var(--text-color);
-                overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-            }
-            .var-row label code {
-                display: block; font-size: 10px; color: var(--muted-color);
-                font-family: ui-monospace, "SFMono-Regular", monospace;
-            }
-            .var-row input[type="color"] {
-                width: 28px; height: 28px;
+            /* ── Shared input primitives ───────────────────────────────── */
+            input[type="color"].editor-color {
+                width: 32px; height: 32px;
                 border: 1px solid var(--border-color);
                 border-radius: 4px; padding: 0;
                 background: transparent; cursor: pointer;
             }
-            .var-row .color-placeholder { width: 28px; height: 28px; }
-            .var-row input[type="text"] {
-                background: var(--bg-color);
-                border: 1px solid var(--border-color); border-radius: 6px;
-                color: var(--text-color); font-size: 13px; padding: 8px 10px;
-                outline: none; transition: border-color 0.2s;
-                font-family: ui-monospace, "SFMono-Regular", monospace;
+            .editor input[type="color"] {
+                width: 32px; height: 32px;
+                border: 1px solid var(--border-color);
+                border-radius: 4px; padding: 0;
+                background: transparent; cursor: pointer;
             }
-            .var-row input[type="text"]:focus { border-color: var(--accent-color); }
-            .var-row input[type="text"].error { border-color: var(--danger-color); }
-            .var-row .swatch-cell {
-                width: 36px; height: 28px;
+            .swatch-cell {
+                width: 44px; height: 28px;
                 border: 1px solid var(--border-color);
                 border-radius: 4px;
+                background-color: #222;
             }
-            .var-row .field-error-inline {
-                grid-column: 1 / -1;
-                font-size: 11px; color: var(--danger-hover);
-                margin: -4px 0 4px 210px;
-                min-height: 14px;
+
+            .opacity-wrap {
+                display: flex; align-items: center; gap: 6px;
+                min-width: 120px;
             }
+            .opacity-wrap input[type="range"] {
+                flex: 1; min-width: 70px; accent-color: var(--accent-color);
+                cursor: pointer;
+            }
+            .opacity-value {
+                font-variant-numeric: tabular-nums;
+                font-size: 12px; color: var(--muted-color);
+                min-width: 32px; text-align: right;
+            }
+
+            .var-label {
+                display: flex; flex-direction: column; min-width: 0;
+            }
+            .var-label-text {
+                font-size: 13px; color: var(--text-color);
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            }
+            .var-label-code {
+                display: none;
+                font-size: 10px; color: var(--muted-color);
+                font-family: ui-monospace, "SFMono-Regular", monospace;
+                margin-top: 2px;
+            }
+            body.editor-show-advanced .var-label-code { display: block; }
+
+            /* ── Colors section: per-row layout ────────────────────────── */
+            .color-row {
+                display: grid;
+                grid-template-columns: 1fr 32px 130px 44px;
+                gap: 12px; align-items: center;
+                padding: 6px 0;
+            }
+
+            /* ── Gradient section: per-row layout ──────────────────────── */
+            .gradient-row {
+                display: grid;
+                grid-template-columns: 1fr 32px 130px auto auto 44px;
+                gap: 12px; align-items: center;
+                padding: 6px 0;
+            }
+            .reverse-btn {
+                background: var(--card-bg-elevated);
+                color: var(--text-color);
+                border: 1px solid var(--border-color);
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 12px;
+                cursor: pointer;
+                transition: border-color 0.15s ease, background 0.15s ease;
+                white-space: nowrap;
+            }
+            .reverse-btn:hover:not(:disabled) { border-color: var(--accent-color); }
+            .reverse-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+            /* ── Toggle rows (unified toggles + per-row solid toggle) ──── */
+            .toggle-row {
+                display: inline-flex; align-items: center; gap: 6px;
+                cursor: pointer; user-select: none;
+                font-size: 13px; color: var(--text-color);
+            }
+            .toggle-row.inline { font-size: 12px; }
+            .toggle-row input[type="checkbox"] { accent-color: var(--accent-color); cursor: pointer; }
+
+            .unified-toggles {
+                display: flex; flex-direction: column; gap: 6px;
+                background: var(--bg-color);
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 10px 12px;
+                margin-bottom: 10px;
+            }
+
+            /* ── Advanced disclosure (CSS-var names) ───────────────────── */
+            .advanced-disclosure {
+                display: flex; align-items: center; gap: 8px;
+                margin: 12px 0 4px;
+                font-size: 12px; color: var(--muted-color);
+            }
+            .advanced-disclosure input[type="checkbox"] { accent-color: var(--accent-color); cursor: pointer; }
+
+            /* ── Legacy-fallback notice ────────────────────────────────── */
+            .editor-notice {
+                display: flex; align-items: center; gap: 10px;
+                background: rgba(245, 158, 11, 0.12);
+                border: 1px solid rgba(245, 158, 11, 0.45);
+                color: #fbbf24;
+                border-radius: 8px;
+                padding: 10px 12px;
+                margin: 10px 0 4px;
+                font-size: 12px;
+                line-height: 1.5;
+            }
+            .editor-notice .notice-dismiss {
+                margin-left: auto;
+                background: transparent; border: none;
+                color: inherit; cursor: pointer;
+                font-size: 14px; padding: 4px 6px;
+                border-radius: 4px;
+            }
+            .editor-notice .notice-dismiss:hover { background: rgba(245, 158, 11, 0.2); }
 
             .editor-footer {
                 display: flex; align-items: center; justify-content: space-between;
@@ -414,11 +502,18 @@
                     </div>
                     <div class="field-error" id="editor-name-error"></div>
 
-                    <div class="var-section-label">Colors</div>
-                    <div id="editor-color-fields"></div>
+                    <div class="editor-notice" id="editor-notice" style="display: none"></div>
 
-                    <div class="var-section-label">Backgrounds &amp; gradients</div>
-                    <div id="editor-gradient-fields"></div>
+                    <label class="advanced-disclosure" for="editor-advanced-toggle">
+                        <input type="checkbox" id="editor-advanced-toggle" />
+                        <span>Show CSS variable names (advanced)</span>
+                    </label>
+
+                    <div class="var-section-label">Colors</div>
+                    <div id="editor-color-section"></div>
+
+                    <div class="var-section-label">Backgrounds</div>
+                    <div id="editor-gradient-section"></div>
                 </div>
                 <div class="editor-footer">
                     <div class="footer-status" id="editor-footer-status"></div>

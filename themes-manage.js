@@ -49,6 +49,15 @@
       if (typeof v !== "string" || !v.trim())
         return `Variable '${k}' must be a non-empty string.`;
     }
+    // `meta` is optional and additive — only used by the v2 editor for
+    // lossless round-tripping. If present, must be a plain object so a
+    // hostile import can't smuggle in arrays / functions / nulls that the
+    // editor would treat as objects later.
+    if (obj.meta !== undefined) {
+      if (!obj.meta || typeof obj.meta !== "object" || Array.isArray(obj.meta)) {
+        return "'meta' must be an object if present.";
+      }
+    }
     return null;
   }
 
@@ -67,7 +76,7 @@
   }
 
   function normalizeForStorage(raw) {
-    return {
+    const out = {
       id: typeof raw.id === "string" && raw.id.startsWith("custom-")
         ? raw.id
         : genId(),
@@ -76,6 +85,13 @@
       source: "custom",
       vars: raw.vars
     };
+    // `meta` is the v2-editor sidecar (see Editor section). Strictly optional;
+    // omit the key entirely when not present so legacy storage rows stay byte-
+    // identical and so exports of legacy themes don't gain a stray "meta": null.
+    if (raw.meta && typeof raw.meta === "object" && !Array.isArray(raw.meta)) {
+      out.meta = raw.meta;
+    }
+    return out;
   }
 
   // ── Persistence ──────────────────────────────────────────────────────────
@@ -276,13 +292,24 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  function exportTheme(theme) {
-    const safeName = (theme.name || theme.id).replace(/[^a-z0-9-_]+/gi, "_");
-    downloadJson(`${safeName}.json`, {
+  // Build the JSON payload for a single theme export. We deliberately omit
+  // `id` and `source` (they're recomputed on import) and conditionally
+  // include `meta` so legacy themes round-trip identically.
+  function buildExportPayload(theme) {
+    const payload = {
       name: theme.name,
       author: theme.author || "",
-      vars: theme.vars
-    });
+      vars: theme.vars,
+    };
+    if (theme.meta && typeof theme.meta === "object") {
+      payload.meta = theme.meta;
+    }
+    return payload;
+  }
+
+  function exportTheme(theme) {
+    const safeName = (theme.name || theme.id).replace(/[^a-z0-9-_]+/gi, "_");
+    downloadJson(`${safeName}.json`, buildExportPayload(theme));
     try {
       if (window.track) window.track("theme_exported", { mode: "single", count: 1 });
     } catch (_) { /* ignore */ }
@@ -293,11 +320,7 @@
       toast("No custom themes to export.", "error");
       return;
     }
-    downloadJson("custom-themes.json", customs.map((t) => ({
-      name: t.name,
-      author: t.author || "",
-      vars: t.vars
-    })));
+    downloadJson("custom-themes.json", customs.map(buildExportPayload));
     try {
       if (window.track) {
         window.track("theme_exported", { mode: "all", count: customs.length });
@@ -487,89 +510,298 @@
     }
   }
 
-  // ── Editor ───────────────────────────────────────────────────────────────
+  // ── Editor (v2) ──────────────────────────────────────────────────────────
   //
-  // The editor is a modal that builds itself from WA_THEME_VAR_KEYS on first
-  // open. Every preset, every imported theme, and every user-created theme
-  // shares the exact same { name, vars } shape — so create/edit/duplicate
-  // all map onto a single "draft" model. Save goes through
-  // addOrReplaceTheme(), the same code path imports use, which means an
-  // imported theme can be edited here without any branching.
+  // v1 exposed all 17 CSS variables as raw text fields, forcing users to
+  // hand-write `linear-gradient(...)` strings for the nine background vars.
+  // That doesn't work for non-developers.
   //
-  // Var taxonomy: WA_THEME_VAR_KEYS has 17 entries. Eight are simple colors
-  // (rgba/rgb/hex), nine are CSS background strings that are typically
-  // linear-gradient(...). We offer a native color picker on the eight color
-  // vars; the nine gradient vars only get a free-form text input because
-  // <input type="color"> can't represent multi-stop gradients.
+  // v2 splits the surface into:
+  //
+  //   • COLORS section — 8 vars, each rendered as
+  //       (color picker, opacity slider, live swatch).
+  //     Grouped under "Text", "Message bubbles", "Other" so 8 rows feel like
+  //     three short lists. The raw `rgb(...)` text input is gone; the CSS
+  //     variable name lives behind an "Advanced" disclosure.
+  //
+  //   • BACKGROUNDS section — 9 vars, each rendered as
+  //       (color picker, opacity slider, solid toggle, reverse button,
+  //        live swatch).
+  //     Direction (`to top`, `45deg`, …) is *inferred from the var name* and
+  //     never user-editable. Two "unified" toggles cascade edits across the
+  //     four main-bg vars and the five wait vars respectively. No raw CSS
+  //     anywhere in the UI.
+  //
+  // Storage extension (additive, opt-in): the editor persists its raw inputs
+  // into `theme.meta.gradients` and `theme.meta.colorGroupings` so re-open
+  // is lossless. The apply path (themes-content.js) still reads only `vars`.
+  // Themes without `meta` (legacy customs, presets being duplicated, third-
+  // party imports) open via a best-effort parse from `vars`.
 
-  // Friendly labels. Source of truth for which vars are color vs background.
-  const VAR_META = [
-    // Colors (rgba / rgb / hex). Render with color picker shortcut.
-    { key: "--hyperlink-text",        label: "Hyperlink text",            kind: "color" },
-    { key: "--important-text",        label: "Important text",            kind: "color" },
-    { key: "--writing-text",          label: "Compose-box text",          kind: "color" },
-    { key: "--read-by",               label: "Read-receipt accent",       kind: "color" },
-    { key: "--message-incoming",      label: "Incoming message bubble",   kind: "color" },
-    { key: "--message-outgoing",      label: "Outgoing message bubble",   kind: "color" },
-    { key: "--main-bg-constant",      label: "Main background (solid)",   kind: "color" },
-    { key: "--scrollbar-track-color", label: "Scrollbar track",           kind: "color" },
-    // Gradients / CSS background strings. Free-form text only.
-    { key: "--main-bg-to-top",                label: "Main bg — gradient ↑",       kind: "background" },
-    { key: "--main-bg-to-bottom",             label: "Main bg — gradient ↓",       kind: "background" },
-    { key: "--main-bg-to-positive-angle",     label: "Main bg — gradient ⇗ (+45°)", kind: "background" },
-    { key: "--main-bg-to-negative-angle",     label: "Main bg — gradient ⇘ (-45°)", kind: "background" },
-    { key: "--wait-color-big",                label: "Loading screen (large)",     kind: "background" },
-    { key: "--wait-color-side",               label: "Loading screen (side)",      kind: "background" },
-    { key: "--wait-side-chat-items",          label: "Loading chat items",         kind: "background" },
-    { key: "--wait-side-chat-items-reverse",  label: "Loading chat items (rev.)",  kind: "background" },
-    { key: "--wait-side-chat-items-to-top",   label: "Loading chat items (↑)",     kind: "background" },
+  // ─── Var taxonomy ────────────────────────────────────────────────────────
+  // Colors get sub-grouped for the UX. Sub-group order is preserved as the
+  // render order in the editor.
+  const COLOR_VAR_GROUPS = [
+    {
+      label: "Text",
+      vars: [
+        { key: "--hyperlink-text", label: "Hyperlink text" },
+        { key: "--important-text", label: "Important text" },
+        { key: "--writing-text",   label: "Compose-box text" },
+        { key: "--read-by",        label: "Read-receipt accent" },
+      ],
+    },
+    {
+      label: "Message bubbles",
+      vars: [
+        { key: "--message-incoming", label: "Incoming bubble" },
+        { key: "--message-outgoing", label: "Outgoing bubble" },
+      ],
+    },
+    {
+      label: "Other",
+      vars: [
+        { key: "--main-bg-constant",      label: "Main background (base)" },
+        { key: "--scrollbar-track-color", label: "Scrollbar track" },
+      ],
+    },
   ];
+
+  // Direction map for gradients. Cross-checked against preset values in
+  // themes-presets.js — both `*-positive-angle` and `*-negative-angle` use
+  // `45deg` (the Designer reference does the same), so don't infer
+  // `-45deg` from the var name even though the name suggests it.
+  const GRADIENT_VAR_META = {
+    "--main-bg-to-top":               { label: "Main bg — up",                  direction: "to top",    group: "mainBg" },
+    "--main-bg-to-bottom":            { label: "Main bg — down",                direction: "to bottom", group: "mainBg" },
+    "--main-bg-to-positive-angle":    { label: "Main bg — diagonal",            direction: "45deg",     group: "mainBg" },
+    "--main-bg-to-negative-angle":    { label: "Main bg — diagonal (alt.)",     direction: "45deg",     group: "mainBg" },
+    "--wait-color-big":               { label: "Loading screen (large)",        direction: "45deg",     group: "wait" },
+    "--wait-color-side":              { label: "Loading screen (side)",         direction: "45deg",     group: "wait" },
+    "--wait-side-chat-items":         { label: "Loading chat items",            direction: "45deg",     group: "wait" },
+    "--wait-side-chat-items-reverse": { label: "Loading chat items (alt.)",     direction: "45deg",     group: "wait" },
+    "--wait-side-chat-items-to-top":  { label: "Loading chat items (up)",       direction: "to top",    group: "wait" },
+  };
+
+  const MAIN_BG_GRADIENT_VARS = Object.keys(GRADIENT_VAR_META)
+    .filter((k) => GRADIENT_VAR_META[k].group === "mainBg");
+  const WAIT_GRADIENT_VARS = Object.keys(GRADIENT_VAR_META)
+    .filter((k) => GRADIENT_VAR_META[k].group === "wait");
+
+  // All color vars (across sub-groups), flat. The `--main-bg-constant` here
+  // is also cascaded by the mainBgUnified toggle (Designer behavior).
+  const ALL_COLOR_VARS = COLOR_VAR_GROUPS.flatMap((g) => g.vars.map((v) => v.key));
 
   // Editor state. `null` means closed.
   let editor = null;
 
-  // ── Editor validation helpers ────────────────────────────────────────────
-  // CSS-property roundtrip: assign value to a throwaway element's style; the
-  // browser silently rejects invalid values, leaving the property as "". This
-  // catches malformed rgba(), unknown named colors, broken gradients, etc.
-  function isValidCssColor(value) {
-    if (typeof value !== "string" || !value.trim()) return false;
-    const el = document.createElement("div");
-    el.style.color = "";
-    el.style.color = value;
-    return el.style.color !== "";
-  }
-  function isValidCssBackground(value) {
-    if (typeof value !== "string" || !value.trim()) return false;
-    const el = document.createElement("div");
-    el.style.background = "";
-    el.style.background = value;
-    return el.style.background !== "";
-  }
-  function isValidVarValue(kind, value) {
-    return kind === "color" ? isValidCssColor(value) : isValidCssBackground(value);
+  // ─── Helpers: rgb(a) parsing / formatting ────────────────────────────────
+  const RGB_RE_FIRST = /rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*([0-9]*\.?[0-9]+))?\s*\)/i;
+  const RGB_RE_ALL   = /rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*([0-9]*\.?[0-9]+))?\s*\)/gi;
+
+  function parseRgbTriplet(rgbLike) {
+    const m = String(rgbLike).match(RGB_RE_FIRST);
+    if (!m) return [0, 0, 0];
+    return [m[1], m[2], m[3]].map((n) => Math.max(0, Math.min(255, Number(n))));
   }
 
-  // Parse the user's current var text into a #rrggbb for the color picker.
-  // If we can't, fall back to #000000 — the picker isn't authoritative anyway.
-  function valueToHex(value) {
-    if (typeof value !== "string") return "#000000";
-    const trimmed = value.trim();
-    if (/^#[0-9a-f]{3}$/i.test(trimmed)) {
-      return "#" + trimmed.slice(1).split("").map((c) => c + c).join("").toLowerCase();
+  function formatAlpha(a) {
+    const v = Math.max(0, Math.min(1, Number(a)));
+    if (v === 0) return "0";
+    if (v === 1) return "1";
+    return v.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+  }
+
+  function rgbaFor(rgb, opacity) {
+    const [r, g, b] = parseRgbTriplet(rgb);
+    return `rgba(${r}, ${g}, ${b}, ${formatAlpha(opacity)})`;
+  }
+
+  function rgbToHex(rgbLike) {
+    const [r, g, b] = parseRgbTriplet(rgbLike);
+    const hx = (n) => n.toString(16).padStart(2, "0");
+    return "#" + hx(r) + hx(g) + hx(b);
+  }
+
+  function hexToRgb(hex) {
+    return `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
+  }
+
+  // ─── Helpers: input → CSS string (for storage in `vars`) ─────────────────
+  function renderColorVar({ color, opacity }) {
+    return rgbaFor(color, opacity);
+  }
+
+  function renderGradientVar({ color, opacity, solid, reverse }, direction) {
+    const opaque = rgbaFor(color, opacity);
+    if (solid) return opaque;
+    const [r, g, b] = parseRgbTriplet(color);
+    const transparent = `rgba(${r}, ${g}, ${b}, 0)`;
+    const stops = reverse
+      ? `${transparent}, ${opaque}`
+      : `${opaque}, ${transparent}`;
+    return `linear-gradient(${direction}, ${stops})`;
+  }
+
+  // ─── Helpers: legacy CSS string → editor inputs (best-effort parse) ──────
+  function parseColorToInputs(value) {
+    if (typeof value !== "string" || !value.trim()) {
+      return { color: "rgb(0, 0, 0)", opacity: 1, fallback: true };
     }
-    if (/^#[0-9a-f]{6}$/i.test(trimmed)) return trimmed.toLowerCase();
-    const m = trimmed.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+    const m = value.match(RGB_RE_FIRST);
     if (m) {
-      const hx = (n) => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, "0");
-      return "#" + hx(m[1]) + hx(m[2]) + hx(m[3]);
+      return {
+        color: `rgb(${m[1]}, ${m[2]}, ${m[3]})`,
+        opacity: m[4] !== undefined
+          ? Math.max(0, Math.min(1, parseFloat(m[4])))
+          : 1,
+        fallback: false,
+      };
     }
-    return "#000000";
+    // Hex / named colors — punt to a sensible default; user can re-pick.
+    return { color: "rgb(0, 0, 0)", opacity: 1, fallback: true };
   }
 
-  // ── Editor open/close ────────────────────────────────────────────────────
-  // opts = { mode: "create"|"edit", source: "theme_manager"|"duplicate_preset"|"duplicate_custom",
-  //          editingId?: string, seedFrom?: Theme }
+  function parseGradientToInputs(value) {
+    if (typeof value !== "string" || !value.trim()) {
+      return { color: "rgb(0, 0, 0)", opacity: 1, solid: false, reverse: false, fallback: true };
+    }
+    const trimmed = value.trim();
+    if (!/linear-gradient/i.test(trimmed)) {
+      // Solid color (no gradient).
+      const c = parseColorToInputs(trimmed);
+      return {
+        color: c.color,
+        opacity: c.opacity,
+        solid: true,
+        reverse: false,
+        fallback: c.fallback,
+      };
+    }
+    const stops = [...trimmed.matchAll(RGB_RE_ALL)];
+    if (stops.length === 0) {
+      return { color: "rgb(0, 0, 0)", opacity: 1, solid: false, reverse: false, fallback: true };
+    }
+    const firstAlpha  = stops[0][4] !== undefined ? parseFloat(stops[0][4]) : 1;
+    const secondAlpha = stops.length > 1 && stops[1][4] !== undefined ? parseFloat(stops[1][4]) : 1;
+    // If the first stop is more transparent than the second, the gradient is
+    // fading-in rather than fading-out — that's our `reverse` state. The base
+    // color comes from whichever stop carries the visible opacity.
+    const reverse = firstAlpha < secondAlpha;
+    const baseStop = reverse ? stops[1] : stops[0];
+    return {
+      color: `rgb(${baseStop[1]}, ${baseStop[2]}, ${baseStop[3]})`,
+      opacity: baseStop[4] !== undefined ? Math.max(0, Math.min(1, parseFloat(baseStop[4]))) : 1,
+      solid: false,
+      reverse,
+      fallback: false,
+    };
+  }
+
+  // ─── Group-equality check (smart default for unified toggles) ────────────
+  function gradientInputsEqual(a, b) {
+    if (!a || !b) return false;
+    return a.color === b.color
+      && Math.abs(a.opacity - b.opacity) < 0.005
+      && a.solid === b.solid
+      && a.reverse === b.reverse;
+  }
+
+  function colorInputsEqual(a, b) {
+    if (!a || !b) return false;
+    return a.color === b.color && Math.abs(a.opacity - b.opacity) < 0.005;
+  }
+
+  // For mainBg unification we also care that the constant color matches the
+  // gradient color (because the unified row drives both). We don't compare
+  // opacities here — the constant slot has its own slider in the Other
+  // sub-group, and we cascade only the *color* component on toggle.
+  function isMainBgUnified(gradientInputs, colorInputs) {
+    if (!MAIN_BG_GRADIENT_VARS.length) return false;
+    const first = gradientInputs[MAIN_BG_GRADIENT_VARS[0]];
+    if (!first) return false;
+    const gradAllEqual = MAIN_BG_GRADIENT_VARS.every(
+      (k) => gradientInputsEqual(gradientInputs[k], first)
+    );
+    if (!gradAllEqual) return false;
+    const ck = colorInputs["--main-bg-constant"];
+    return !!ck && ck.color === first.color;
+  }
+
+  function isWaitUnified(gradientInputs) {
+    if (!WAIT_GRADIENT_VARS.length) return false;
+    const first = gradientInputs[WAIT_GRADIENT_VARS[0]];
+    return WAIT_GRADIENT_VARS.every(
+      (k) => gradientInputsEqual(gradientInputs[k], first)
+    );
+  }
+
+  // ─── Build the draft state from a seed theme (or empty defaults) ─────────
+  // Preference order: theme.meta.gradients > parse(theme.vars) > defaults.
+  function buildDraftFromSeed(seed) {
+    const colors = {};
+    const gradients = {};
+    let anyFallback = false;
+
+    ALL_COLOR_VARS.forEach((key) => {
+      const fromMeta = seed && seed.meta && seed.meta.colors && seed.meta.colors[key];
+      if (fromMeta && typeof fromMeta === "object") {
+        colors[key] = {
+          color: typeof fromMeta.color === "string" ? fromMeta.color : "rgb(0, 0, 0)",
+          opacity: typeof fromMeta.opacity === "number" ? fromMeta.opacity : 1,
+        };
+        return;
+      }
+      const rawValue = seed && seed.vars && seed.vars[key];
+      const parsed = parseColorToInputs(rawValue);
+      colors[key] = { color: parsed.color, opacity: parsed.opacity };
+      if (parsed.fallback && rawValue) anyFallback = true;
+    });
+
+    Object.keys(GRADIENT_VAR_META).forEach((key) => {
+      const fromMeta = seed && seed.meta && seed.meta.gradients && seed.meta.gradients[key];
+      if (fromMeta && typeof fromMeta === "object") {
+        gradients[key] = {
+          color:   typeof fromMeta.color === "string" ? fromMeta.color : "rgb(0, 0, 0)",
+          opacity: typeof fromMeta.opacity === "number" ? fromMeta.opacity : 1,
+          solid:   !!fromMeta.solid,
+          reverse: !!fromMeta.reverse,
+        };
+        return;
+      }
+      const rawValue = seed && seed.vars && seed.vars[key];
+      const parsed = parseGradientToInputs(rawValue);
+      gradients[key] = {
+        color:   parsed.color,
+        opacity: parsed.opacity,
+        solid:   parsed.solid,
+        reverse: parsed.reverse,
+      };
+      if (parsed.fallback && rawValue) anyFallback = true;
+    });
+
+    // Unified toggles: prefer the explicit meta hint; otherwise smart-detect
+    // from the current values. On a fresh create with no seed, default to on.
+    const groupingsMeta = seed && seed.meta && seed.meta.colorGroupings;
+    const mainBgUnified = groupingsMeta && typeof groupingsMeta.mainBgUnified === "boolean"
+      ? groupingsMeta.mainBgUnified
+      : (seed ? isMainBgUnified(gradients, colors) : true);
+    const waitUnified = groupingsMeta && typeof groupingsMeta.waitUnified === "boolean"
+      ? groupingsMeta.waitUnified
+      : (seed ? isWaitUnified(gradients) : true);
+
+    return {
+      colors,
+      gradients,
+      groupings: { mainBgUnified, waitUnified },
+      // Did we hit a parse fallback while reading legacy `vars`? The notice
+      // only shows when there's a seed AND parsing dropped detail — fresh
+      // creates with no seed don't trigger it.
+      parseFallback: !!seed && !(seed.meta && seed.meta.gradients) && anyFallback,
+    };
+  }
+
+  // ─── Open / close ────────────────────────────────────────────────────────
   function openEditor(opts) {
     const mode = opts.mode === "edit" ? "edit" : "create";
     const source = opts.source || "theme_manager";
@@ -587,30 +819,30 @@
 
     const draftName = mode === "edit"
       ? (seed ? seed.name : "")
-      : (seed && opts.source === "duplicate_preset")
+      : (seed && (opts.source === "duplicate_preset" || opts.source === "duplicate_custom"))
         ? `${seed.name} (copy)`
-        : (seed && opts.source === "duplicate_custom")
-          ? `${seed.name} (copy)`
-          : "";
-    const draftVars = {};
-    VAR_META.forEach(({ key }) => {
-      draftVars[key] = seed && seed.vars && typeof seed.vars[key] === "string"
-        ? seed.vars[key]
         : "";
-    });
+
+    const built = buildDraftFromSeed(seed);
 
     editor = {
       mode,
       source,
-      editingId: mode === "edit" ? (seed ? seed.id : null) : null,
+      editingId: mode === "edit" && seed ? seed.id : null,
       originalName: mode === "edit" && seed ? seed.name : null,
-      draft: { name: draftName, vars: draftVars },
+      draft: {
+        name: draftName,
+        colors: built.colors,
+        gradients: built.gradients,
+        groupings: built.groupings,
+      },
+      showAdvanced: false,
       dirty: false,
+      parseFallbackShown: built.parseFallback,
     };
 
-    // Title + analytics
     document.getElementById("editor-title").textContent =
-      mode === "edit" ? `Edit Theme` : "Create Theme";
+      mode === "edit" ? "Edit Theme" : "Create Theme";
     try {
       if (window.track) {
         window.track("theme_creator_opened", {
@@ -623,9 +855,7 @@
 
     renderEditor();
 
-    const backdrop = document.getElementById("editor-backdrop");
-    backdrop.classList.add("visible");
-    // Focus the name field for immediate typing.
+    document.getElementById("editor-backdrop").classList.add("visible");
     setTimeout(() => {
       const nameInput = document.getElementById("editor-name");
       if (nameInput) nameInput.focus();
@@ -651,11 +881,10 @@
     }
   }
 
-  // ── Editor rendering ─────────────────────────────────────────────────────
+  // ─── Top-level render ────────────────────────────────────────────────────
   function renderEditor() {
     if (!editor) return;
 
-    // Name input
     const nameInput = document.getElementById("editor-name");
     const counter = document.getElementById("editor-name-counter");
     nameInput.value = editor.draft.name;
@@ -664,102 +893,388 @@
     nameInput.classList.remove("error");
     document.getElementById("editor-footer-status").textContent = "";
 
-    // Var fields — build once. Subsequent renderEditor() calls (e.g. from
-    // openEditor seeded with new values) replace the contents.
-    const colorWrap    = document.getElementById("editor-color-fields");
-    const gradientWrap = document.getElementById("editor-gradient-fields");
-    colorWrap.innerHTML = "";
-    gradientWrap.innerHTML = "";
+    // Legacy-fallback notice. We render it once per open; if the user
+    // dismisses (via the small × button), parseFallbackShown stays false.
+    const notice = document.getElementById("editor-notice");
+    if (editor.parseFallbackShown) {
+      notice.style.display = "";
+      notice.innerHTML = "";
+      const msg = document.createElement("span");
+      msg.textContent = "This theme was created in an older version; some gradient details may have been reset.";
+      const dismiss = document.createElement("button");
+      dismiss.type = "button";
+      dismiss.className = "notice-dismiss";
+      dismiss.setAttribute("aria-label", "Dismiss notice");
+      dismiss.textContent = "✕";
+      dismiss.addEventListener("click", () => {
+        editor.parseFallbackShown = false;
+        notice.style.display = "none";
+      });
+      notice.appendChild(msg);
+      notice.appendChild(dismiss);
+    } else {
+      notice.style.display = "none";
+      notice.textContent = "";
+    }
 
-    VAR_META.forEach((meta) => {
-      const row = buildVarRow(meta);
-      (meta.kind === "color" ? colorWrap : gradientWrap).appendChild(row);
+    // Advanced (var-name) toggle. Default off.
+    const advToggle = document.getElementById("editor-advanced-toggle");
+    advToggle.checked = !!editor.showAdvanced;
+    document.body.classList.toggle("editor-show-advanced", !!editor.showAdvanced);
+
+    renderColorSection();
+    renderGradientSection();
+  }
+
+  // ─── Colors section ──────────────────────────────────────────────────────
+  function renderColorSection() {
+    const root = document.getElementById("editor-color-section");
+    root.innerHTML = "";
+    COLOR_VAR_GROUPS.forEach((group) => {
+      const subhead = document.createElement("div");
+      subhead.className = "var-subgroup-label";
+      subhead.textContent = group.label;
+      root.appendChild(subhead);
+      group.vars.forEach((meta) => {
+        root.appendChild(buildColorRow(meta));
+      });
     });
   }
 
-  function buildVarRow(meta) {
+  function buildColorRow(meta) {
     const row = document.createElement("div");
-    row.className = "var-row";
+    row.className = "color-row";
     row.dataset.varKey = meta.key;
 
-    const label = document.createElement("label");
-    label.htmlFor = `editor-var-${meta.key}`;
-    label.innerHTML = "";
+    const label = document.createElement("div");
+    label.className = "var-label";
     const labelText = document.createElement("span");
+    labelText.className = "var-label-text";
     labelText.textContent = meta.label;
     const labelCode = document.createElement("code");
+    labelCode.className = "var-label-code";
     labelCode.textContent = meta.key;
     label.appendChild(labelText);
     label.appendChild(labelCode);
 
-    // Color shortcut (only for `kind === "color"`).
-    let colorPicker;
-    if (meta.kind === "color") {
-      colorPicker = document.createElement("input");
-      colorPicker.type = "color";
-      colorPicker.value = valueToHex(editor.draft.vars[meta.key]);
-      colorPicker.title = "Pick a color (resets alpha)";
-    } else {
-      colorPicker = document.createElement("span");
-      colorPicker.className = "color-placeholder";
-    }
+    const state = editor.draft.colors[meta.key];
 
-    const text = document.createElement("input");
-    text.type = "text";
-    text.id = `editor-var-${meta.key}`;
-    text.value = editor.draft.vars[meta.key];
-    text.placeholder = meta.kind === "color"
-      ? "rgba(0, 0, 0, 1)"
-      : "linear-gradient(to bottom, ...)";
-    text.spellcheck = false;
-    text.autocomplete = "off";
+    const colorPicker = document.createElement("input");
+    colorPicker.type = "color";
+    colorPicker.value = rgbToHex(state.color);
+    colorPicker.title = "Pick a color";
+
+    const opacityWrap = document.createElement("div");
+    opacityWrap.className = "opacity-wrap";
+    const opacity = document.createElement("input");
+    opacity.type = "range";
+    opacity.min = "0"; opacity.max = "100"; opacity.step = "1";
+    opacity.value = String(Math.round(state.opacity * 100));
+    opacity.title = "Opacity";
+    const opacityValue = document.createElement("span");
+    opacityValue.className = "opacity-value";
+    opacityValue.textContent = `${opacity.value}%`;
+    opacityWrap.appendChild(opacity);
+    opacityWrap.appendChild(opacityValue);
 
     const swatch = document.createElement("div");
     swatch.className = "swatch-cell";
-    swatch.style.background = editor.draft.vars[meta.key] || "transparent";
+    swatch.style.background = renderColorVar(state);
 
-    const err = document.createElement("div");
-    err.className = "field-error-inline";
-
-    const updateSwatch = (value) => {
+    const update = () => {
+      const css = renderColorVar(state);
       swatch.style.background = "";
-      swatch.style.background = value || "transparent";
-    };
-    const clearError = () => {
-      err.textContent = "";
-      text.classList.remove("error");
+      swatch.style.background = css;
+      opacityValue.textContent = `${Math.round(state.opacity * 100)}%`;
+      editor.dirty = true;
+      // `--main-bg-constant` lives in this section but is cascaded by the
+      // mainBg unified toggle when on. Forward the *color* (not opacity)
+      // to all mainBg gradients in that case — matches Designer's
+      // setMainBgVariables behavior.
+      if (meta.key === "--main-bg-constant" && editor.draft.groupings.mainBgUnified) {
+        MAIN_BG_GRADIENT_VARS.forEach((k) => {
+          editor.draft.gradients[k].color = state.color;
+        });
+        rerenderMainBgRows();
+      }
     };
 
-    text.addEventListener("input", () => {
-      editor.draft.vars[meta.key] = text.value;
-      editor.dirty = true;
-      updateSwatch(text.value);
-      clearError();
+    colorPicker.addEventListener("input", () => {
+      state.color = hexToRgb(colorPicker.value);
+      update();
     });
-    if (meta.kind === "color") {
-      colorPicker.addEventListener("input", () => {
-        const hex = colorPicker.value;
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        const v = `rgb(${r}, ${g}, ${b})`;
-        text.value = v;
-        editor.draft.vars[meta.key] = v;
-        editor.dirty = true;
-        updateSwatch(v);
-        clearError();
-      });
-    }
+    opacity.addEventListener("input", () => {
+      state.opacity = Number(opacity.value) / 100;
+      update();
+    });
 
     row.appendChild(label);
     row.appendChild(colorPicker);
-    row.appendChild(text);
+    row.appendChild(opacityWrap);
     row.appendChild(swatch);
-    row.appendChild(err);
     return row;
   }
 
-  // ── Editor save ──────────────────────────────────────────────────────────
+  // ─── Gradient section ────────────────────────────────────────────────────
+  function renderGradientSection() {
+    const root = document.getElementById("editor-gradient-section");
+    root.innerHTML = "";
+
+    // Unified toggles row.
+    const toggles = document.createElement("div");
+    toggles.className = "unified-toggles";
+    toggles.appendChild(buildUnifiedToggle({
+      id: "unified-main-bg",
+      label: "Use the same color for all main backgrounds",
+      get: () => editor.draft.groupings.mainBgUnified,
+      set: (on) => {
+        editor.draft.groupings.mainBgUnified = on;
+        if (on) cascadeMainBg(editor.draft.gradients[MAIN_BG_GRADIENT_VARS[0]]);
+        editor.dirty = true;
+        renderGradientSection();
+      },
+    }));
+    toggles.appendChild(buildUnifiedToggle({
+      id: "unified-wait",
+      label: "Use the same color for all loading states",
+      get: () => editor.draft.groupings.waitUnified,
+      set: (on) => {
+        editor.draft.groupings.waitUnified = on;
+        if (on) cascadeWait(editor.draft.gradients[WAIT_GRADIENT_VARS[0]]);
+        editor.dirty = true;
+        renderGradientSection();
+      },
+    }));
+    root.appendChild(toggles);
+
+    // Render each group.
+    appendGradientGroup(root, {
+      label: "Main background",
+      vars: MAIN_BG_GRADIENT_VARS,
+      unified: editor.draft.groupings.mainBgUnified,
+      cascade: cascadeMainBg,
+      dataAttr: "mainbg",
+    });
+    appendGradientGroup(root, {
+      label: "Loading states",
+      vars: WAIT_GRADIENT_VARS,
+      unified: editor.draft.groupings.waitUnified,
+      cascade: cascadeWait,
+      dataAttr: "wait",
+    });
+  }
+
+  function buildUnifiedToggle({ id, label, get, set }) {
+    const wrap = document.createElement("label");
+    wrap.className = "toggle-row";
+    wrap.htmlFor = id;
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.id = id;
+    input.checked = !!get();
+    input.addEventListener("change", () => {
+      const wasOn = !!get();
+      const isOn = input.checked;
+      set(isOn);
+      try {
+        // Treat toggling off as a "reset" of that group; we only fire the
+        // event on the on→off transition to avoid noise.
+        if (window.track && wasOn && !isOn) {
+          window.track("theme_editor_reset_to_default", { field: "unified_toggle" });
+        }
+      } catch (_) { /* ignore */ }
+    });
+    const text = document.createElement("span");
+    text.textContent = label;
+    wrap.appendChild(input);
+    wrap.appendChild(text);
+    return wrap;
+  }
+
+  function appendGradientGroup(root, { label, vars, unified, cascade, dataAttr }) {
+    const groupHead = document.createElement("div");
+    groupHead.className = "var-subgroup-label";
+    groupHead.textContent = label + (unified ? " (one color for all)" : "");
+    root.appendChild(groupHead);
+
+    if (unified) {
+      // Single row that cascades to all member vars.
+      const firstKey = vars[0];
+      const state = editor.draft.gradients[firstKey];
+      // We label it generically — the user is editing the group, not a var.
+      const row = buildGradientRow({
+        key: firstKey,
+        labelOverride: label,
+        state,
+        onChange: () => cascade(state),
+        groupDataAttr: dataAttr,
+      });
+      root.appendChild(row);
+    } else {
+      vars.forEach((key) => {
+        const state = editor.draft.gradients[key];
+        const meta = GRADIENT_VAR_META[key];
+        const row = buildGradientRow({
+          key,
+          labelOverride: meta.label,
+          state,
+          onChange: () => {},
+          groupDataAttr: dataAttr,
+        });
+        root.appendChild(row);
+      });
+    }
+  }
+
+  function buildGradientRow({ key, labelOverride, state, onChange, groupDataAttr }) {
+    const row = document.createElement("div");
+    row.className = "gradient-row";
+    row.dataset.varKey = key;
+    row.dataset.group = groupDataAttr;
+
+    const label = document.createElement("div");
+    label.className = "var-label";
+    const labelText = document.createElement("span");
+    labelText.className = "var-label-text";
+    labelText.textContent = labelOverride;
+    const labelCode = document.createElement("code");
+    labelCode.className = "var-label-code";
+    labelCode.textContent = key;
+    label.appendChild(labelText);
+    label.appendChild(labelCode);
+
+    const colorPicker = document.createElement("input");
+    colorPicker.type = "color";
+    colorPicker.value = rgbToHex(state.color);
+    colorPicker.title = "Base color";
+
+    const opacityWrap = document.createElement("div");
+    opacityWrap.className = "opacity-wrap";
+    const opacity = document.createElement("input");
+    opacity.type = "range";
+    opacity.min = "0"; opacity.max = "100"; opacity.step = "1";
+    opacity.value = String(Math.round(state.opacity * 100));
+    opacity.title = "Opacity at the visible end";
+    const opacityValue = document.createElement("span");
+    opacityValue.className = "opacity-value";
+    opacityValue.textContent = `${opacity.value}%`;
+    opacityWrap.appendChild(opacity);
+    opacityWrap.appendChild(opacityValue);
+
+    const solidWrap = document.createElement("label");
+    solidWrap.className = "toggle-row inline";
+    const solid = document.createElement("input");
+    solid.type = "checkbox";
+    solid.checked = !!state.solid;
+    const solidText = document.createElement("span");
+    solidText.textContent = "Solid";
+    solidWrap.appendChild(solid);
+    solidWrap.appendChild(solidText);
+
+    const reverse = document.createElement("button");
+    reverse.type = "button";
+    reverse.className = "reverse-btn";
+    reverse.textContent = state.reverse ? "Reversed ⇆" : "Reverse";
+    if (state.solid) reverse.disabled = true;
+
+    const swatch = document.createElement("div");
+    swatch.className = "swatch-cell";
+    const meta = GRADIENT_VAR_META[key];
+    swatch.style.background = renderGradientVar(state, meta.direction);
+
+    const update = () => {
+      swatch.style.background = "";
+      swatch.style.background = renderGradientVar(state, meta.direction);
+      opacityValue.textContent = `${Math.round(state.opacity * 100)}%`;
+      reverse.textContent = state.reverse ? "Reversed ⇆" : "Reverse";
+      reverse.disabled = !!state.solid;
+      editor.dirty = true;
+      onChange();
+      // Cascading edits re-render the whole section so the other rows in
+      // the group reflect the new state; we don't need to manually touch
+      // their DOM here.
+    };
+
+    colorPicker.addEventListener("input", () => {
+      state.color = hexToRgb(colorPicker.value);
+      update();
+    });
+    opacity.addEventListener("input", () => {
+      state.opacity = Number(opacity.value) / 100;
+      update();
+    });
+    solid.addEventListener("change", () => {
+      state.solid = solid.checked;
+      // Reverse has no meaning when solid; clear it to keep state tidy
+      // (matters for the meta sidecar round-trip).
+      if (state.solid) state.reverse = false;
+      update();
+    });
+    reverse.addEventListener("click", () => {
+      if (state.solid) return;
+      state.reverse = !state.reverse;
+      update();
+    });
+
+    row.appendChild(label);
+    row.appendChild(colorPicker);
+    row.appendChild(opacityWrap);
+    row.appendChild(solidWrap);
+    row.appendChild(reverse);
+    row.appendChild(swatch);
+    return row;
+  }
+
+  // Cascade helpers. We mutate the per-var state objects in place so the
+  // "without losing their values" guarantee holds when the user toggles
+  // unified off — each row reads back from the same state slot.
+  function cascadeMainBg(source) {
+    if (!source) return;
+    const snap = {
+      color: source.color,
+      opacity: source.opacity,
+      solid: source.solid,
+      reverse: source.reverse,
+    };
+    MAIN_BG_GRADIENT_VARS.forEach((k) => {
+      const s = editor.draft.gradients[k];
+      s.color = snap.color;
+      s.opacity = snap.opacity;
+      s.solid = snap.solid;
+      s.reverse = snap.reverse;
+    });
+    // The constant slot's color follows the group; opacity is independent
+    // (preset Monster shows constant at α=1 while bg-to-top gradients have
+    // α<1; the user may want to keep that asymmetry).
+    if (editor.draft.colors["--main-bg-constant"]) {
+      editor.draft.colors["--main-bg-constant"].color = snap.color;
+    }
+  }
+
+  function cascadeWait(source) {
+    if (!source) return;
+    const snap = {
+      color: source.color,
+      opacity: source.opacity,
+      solid: source.solid,
+      reverse: source.reverse,
+    };
+    WAIT_GRADIENT_VARS.forEach((k) => {
+      const s = editor.draft.gradients[k];
+      s.color = snap.color;
+      s.opacity = snap.opacity;
+      s.solid = snap.solid;
+      s.reverse = snap.reverse;
+    });
+  }
+
+  function rerenderMainBgRows() {
+    // Called when --main-bg-constant changes color and mainBgUnified is on.
+    // Cheapest correct thing to do is re-render the gradient section.
+    renderGradientSection();
+  }
+
+  // ─── Save ────────────────────────────────────────────────────────────────
   function trackSaveFailed(reason) {
     try {
       if (window.track && editor) {
@@ -778,6 +1293,46 @@
     ) || null;
   }
 
+  // Render the draft into the final theme {vars, meta} shape.
+  function renderDraftToTheme() {
+    const vars = {};
+    ALL_COLOR_VARS.forEach((k) => {
+      vars[k] = renderColorVar(editor.draft.colors[k]);
+    });
+    Object.keys(GRADIENT_VAR_META).forEach((k) => {
+      vars[k] = renderGradientVar(editor.draft.gradients[k], GRADIENT_VAR_META[k].direction);
+    });
+
+    // meta sidecar — only the fields the editor needs to round-trip. We
+    // deliberately do not record the rendered CSS in meta (vars carries
+    // that). Saving the slim shape keeps storage compact.
+    const metaColors = {};
+    ALL_COLOR_VARS.forEach((k) => {
+      const s = editor.draft.colors[k];
+      metaColors[k] = { color: s.color, opacity: s.opacity };
+    });
+    const metaGradients = {};
+    Object.keys(GRADIENT_VAR_META).forEach((k) => {
+      const s = editor.draft.gradients[k];
+      metaGradients[k] = {
+        color: s.color,
+        opacity: s.opacity,
+        solid: s.solid,
+        reverse: s.reverse,
+      };
+    });
+    const meta = {
+      editorVersion: "v2",
+      colors: metaColors,
+      gradients: metaGradients,
+      colorGroupings: {
+        mainBgUnified: editor.draft.groupings.mainBgUnified,
+        waitUnified:   editor.draft.groupings.waitUnified,
+      },
+    };
+    return { vars, meta };
+  }
+
   async function saveDraft() {
     if (!editor) return;
     const nameInput = document.getElementById("editor-name");
@@ -788,9 +1343,7 @@
     nameInput.classList.remove("error");
     footerStatus.textContent = "";
 
-    const rawName = editor.draft.name || "";
-    const name = rawName.trim();
-
+    const name = (editor.draft.name || "").trim();
     if (!name) {
       nameInput.classList.add("error");
       nameErr.textContent = "Name is required.";
@@ -798,50 +1351,20 @@
       return;
     }
     if (name.length > 40) {
-      // The input has maxlength=40, but defend in depth (paste, programmatic).
       nameInput.classList.add("error");
       nameErr.textContent = "Name must be 40 characters or fewer.";
       trackSaveFailed("name_too_long");
       return;
     }
 
-    // Per-field color validation. Collect all bad fields so the user can fix
-    // them in one pass rather than one-at-a-time.
-    let badFieldCount = 0;
-    let firstBadField = null;
-    document.querySelectorAll(".var-row").forEach((row) => {
-      const key = row.dataset.varKey;
-      const meta = VAR_META.find((m) => m.key === key);
-      if (!meta) return;
-      const value = editor.draft.vars[key];
-      const inlineErr = row.querySelector(".field-error-inline");
-      const textInput = row.querySelector('input[type="text"]');
-      inlineErr.textContent = "";
-      textInput.classList.remove("error");
-      if (!isValidVarValue(meta.kind, value)) {
-        textInput.classList.add("error");
-        inlineErr.textContent = meta.kind === "color"
-          ? "Not a valid CSS color."
-          : "Not a valid CSS background value.";
-        badFieldCount++;
-        if (!firstBadField) firstBadField = textInput;
-      }
-    });
-    if (badFieldCount > 0) {
-      footerStatus.textContent = `Fix ${badFieldCount} invalid value${badFieldCount === 1 ? "" : "s"} above.`;
-      trackSaveFailed("invalid_color");
-      if (firstBadField) firstBadField.focus();
-      return;
-    }
+    // v2 doesn't have free-form text inputs, so `invalid_color` should be
+    // unreachable in the happy path. Keep the rendered values in `vars`
+    // syntactically anchored by the renderer; no per-field validation needed.
 
-    // Duplicate-name check. In edit mode, ignore self (the theme being edited).
     const dup = findDuplicateByName(name, editor.editingId);
     let overwrote = false;
     let targetId = editor.editingId;
-
     if (dup) {
-      // Spec: prompt to overwrite or rename. We use confirm() — OK = overwrite,
-      // Cancel = rename (stay in editor; treat as save_failed).
       const ok = confirm(
         `A theme named "${dup.name}" already exists.\n\n` +
         `OK to overwrite it, or Cancel to choose a different name.`
@@ -854,33 +1377,31 @@
         return;
       }
       overwrote = true;
-      // Overwrite collapses onto the existing theme's id so themes:active
-      // references and any external references stay stable.
       targetId = dup.id;
     }
 
-    // Build the theme object. If editing, preserve fields we don't expose
-    // (author etc.); if creating, fresh.
+    const { vars, meta } = renderDraftToTheme();
+
     let base = null;
     if (editor.mode === "edit" && editor.editingId) {
       base = customs.find((t) => t.id === editor.editingId) || null;
     } else if (overwrote) {
       base = dup;
     }
+
     const themeToSave = {
-      id: targetId || undefined, // let normalizeForStorage assign on create
+      id: targetId || undefined,
       name,
       author: base && base.author ? base.author : "",
       source: "custom",
-      vars: { ...editor.draft.vars },
+      vars,
+      meta,
     };
 
     let saved;
     try {
       saved = await addOrReplaceTheme(themeToSave);
     } catch (e) {
-      // chrome.storage.local.set rejects with a QuotaExceededError-ish error.
-      // We don't trust the error type — match by name in the message too.
       const msg = (e && (e.message || String(e))) || "";
       const isQuota = /quota|QUOTA|exceed/i.test(msg);
       footerStatus.textContent = isQuota
@@ -890,8 +1411,13 @@
       return;
     }
 
-    // Success path: emit save event, then close (no creator_closed event —
-    // a successful save isn't a "closed without saving").
+    // Compute analytics summary properties. None of these include any user
+    // text or color values — only counts and booleans.
+    const solidCount = Object.keys(GRADIENT_VAR_META).reduce(
+      (n, k) => n + (editor.draft.gradients[k].solid ? 1 : 0),
+      0
+    );
+
     try {
       if (window.track) {
         window.track("custom_theme_saved", {
@@ -900,14 +1426,15 @@
           name_length: name.length,
           source: editor.source,
           overwrote_existing: overwrote,
+          gradients_used_unified_main_bg: !!editor.draft.groupings.mainBgUnified,
+          gradients_used_unified_wait:    !!editor.draft.groupings.waitUnified,
+          gradients_used_solid_count:     solidCount,
+          editor_version: "v2",
         });
       }
     } catch (_) { /* ignore */ }
 
-    toast(
-      editor.mode === "edit" ? "Theme updated." : "Theme created.",
-      "success"
-    );
+    toast(editor.mode === "edit" ? "Theme updated." : "Theme created.", "success");
     closeEditor({ skipEvent: true });
     renderAll();
   }
@@ -988,13 +1515,22 @@
       editor.draft.name = nameInput.value;
       editor.dirty = true;
       nameCounter.textContent = `${nameInput.value.length} / 40`;
-      // Clear stale name error as the user types.
       const nameErr = document.getElementById("editor-name-error");
       if (nameErr.textContent) {
         nameErr.textContent = "";
         nameInput.classList.remove("error");
       }
     });
+
+    // Advanced (CSS-variable names) disclosure. Off by default; flips a
+    // body class that CSS uses to reveal the .var-label-code elements.
+    const advToggle = document.getElementById("editor-advanced-toggle");
+    if (advToggle) {
+      advToggle.addEventListener("change", () => {
+        if (editor) editor.showAdvanced = advToggle.checked;
+        document.body.classList.toggle("editor-show-advanced", advToggle.checked);
+      });
+    }
 
     // Deep-link from popup: themes.html#create → auto-open the editor.
     // We strip the hash so a reload doesn't reopen unexpectedly.
