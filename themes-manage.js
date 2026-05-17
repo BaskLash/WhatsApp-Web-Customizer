@@ -316,9 +316,16 @@
   // Track one rejection (one rejected file/item). Spec retained `reason` for
   // dashboard compat — populated from the first error code so existing
   // breakdowns keep working; the full list lives in `error_codes`.
+  //
+  // Sets `hadRecentImportFailure` so theme_import_docs_opened can answer
+  // whether the user reached the docs *because* something just failed.
+  let hadRecentImportFailure = false;
   function trackImportRejection({ codes, method, fileSize }) {
+    hadRecentImportFailure = true;
     try {
       if (window.track) {
+        // Q: Which rejection codes do failed imports actually hit? Pairs
+        // with theme_import_docs_opened to model "failure → docs" recovery.
         window.track("theme_import_rejected", {
           reason: codes[0] || "other",
           method,
@@ -1843,6 +1850,26 @@
           dz.scrollIntoView({ behavior: "smooth", block: "center" });
           dz.focus();
         }
+      });
+    }
+
+    // Schema-docs <details> open event. Native <details> emits `toggle`
+    // whenever its `open` attribute flips; we only fire on the opening
+    // edge — closing the disclosure is not interesting.
+    const schemaDocs = document.querySelector("details.schema-docs");
+    if (schemaDocs) {
+      schemaDocs.addEventListener("toggle", () => {
+        if (!schemaDocs.open) return;
+        try {
+          if (window.track) {
+            // Q: Of users who open the schema docs, what share are doing it
+            // *because* an import just failed (vs. proactive learning)?
+            // had_recent_failure pairs failure → docs into a recovery funnel.
+            window.track("theme_import_docs_opened", {
+              had_recent_failure: hadRecentImportFailure,
+            });
+          }
+        } catch (_) { /* ignore */ }
       });
     }
 

@@ -239,7 +239,14 @@ async function deleteImage(entry) {
   }
   try {
     if (window.track) {
-      window.track("image_deleted", { kind: entry.kind, from_page: "manage" });
+      // Dual-write deprecation window: `from_page` is the legacy name; the
+      // canonical entry-point property is `source`. Drop `from_page` after
+      // the 2-release cycle. See ANALYTICS.md.
+      window.track("image_deleted", {
+        kind: entry.kind,
+        from_page: "manage",   // DEPRECATED
+        source: "manage",
+      });
     }
   } catch (_) { /* ignore */ }
   renderGallery();
@@ -248,8 +255,10 @@ async function deleteImage(entry) {
 async function restoreImage(entry) {
   if (!disabledImages.delete(entry.src)) return;
   await saveDisabled();
+  // Q: Are users restoring stock images they disabled, or images they uploaded?
+  // `kind` is a fixed enum from the gallery model — never any user text.
   try {
-    if (window.track) window.track("image_restored");
+    if (window.track) window.track("image_restored", { kind: entry.kind });
   } catch (_) { /* ignore */ }
   showToast("Image restored.");
   renderGallery();

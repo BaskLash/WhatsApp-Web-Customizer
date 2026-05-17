@@ -94,6 +94,7 @@
       })),
     };
 
+    let httpStatus = null;
     try {
       const res = await fetch(`${POSTHOG_HOST}/batch/`, {
         method: "POST",
@@ -101,7 +102,10 @@
         body: JSON.stringify(payload),
         keepalive: true,
       });
-      if (!res.ok) throw new Error(`PostHog returned ${res.status}`);
+      if (!res.ok) {
+        httpStatus = res.status;
+        throw new Error(`PostHog returned ${res.status}`);
+      }
       // Only drop the batch we sent. New events captured during the request
       // stay queued for the next flush.
       const after = await chrome.storage.local.get(STORAGE_KEYS.QUEUE);
@@ -111,15 +115,118 @@
       await chrome.storage.local.set({ [STORAGE_KEYS.QUEUE]: finalQueue });
     } catch (err) {
       console.warn("[analytics] flush failed, will retry:", err);
-      // Re-queue a single diagnostic event so we can measure delivery health.
-      // The event itself goes through capture(), so it picks up $insert_id and
-      // gets retried on the next flush like any other event.
-      try {
-        await capture("analytics_flush_failed", {
-          status: typeof err?.message === "string" ? err.message.slice(0, 64) : "unknown",
-          batch_size: batch.length,
-        });
-      } catch (_) { /* never escalate */ }
+      // Report through the dedicated self-telemetry pipe — NOT capture().
+      // capture() puts events into the same storage queue that just failed,
+      // which used to cascade (the failure event would bloat the next batch,
+      // making the next flush more likely to fail, multiplying the report).
+      // The pipe below has a bounded in-memory queue and is wired so that
+      // its own failures never re-emit anything.
+      reportFlushFailure(err, batch.length, httpStatus);
+    }
+  }
+
+  // ── Self-telemetry pipe ─────────────────────────────────────────────────
+  //
+  // Reporting analytics health is itself an analytics event, but we keep it
+  // off the main queue and on a dedicated path so a delivery storm can never
+  // amplify itself. Hard rules:
+  //   1. Bounded in-memory queue (per SW lifetime). Overflows drop oldest
+  //      and tick a counter. The counter rides on the next successfully
+  //      sent failure report so we don't lose visibility into the storm.
+  //   2. If the self-telemetry pipe itself fails, the failure is swallowed —
+  //      no re-enqueue, no further events. console.warn only.
+  //   3. Never goes through capture() or the main queue.
+  const SELF_TELEMETRY_MAX = 10;
+  let selfTelemetryQueue = [];     // [{ event, properties, timestamp }]
+  let droppedFailureReports = 0;   // Capacity overflows since last successful send.
+  let selfTelemetryInFlight = false;
+
+  function classifyFlushError(err) {
+    const msg = err && err.message ? String(err.message) : "";
+    if (/^PostHog returned/i.test(msg)) return "http_error";
+    if (/network|fetch|TypeError|Failed to fetch/i.test(msg)) return "network_error";
+    return "unknown";
+  }
+
+  function reportFlushFailure(err, batchSize, httpStatus) {
+    const errorClass = classifyFlushError(err);
+    const props = {
+      // Dual-write deprecation: keep `status` for two release cycles so any
+      // existing dashboard breakdowns survive the cutover. Migrate consumers
+      // to `error_class` (enum) or `endpoint_status` (HTTP code). See
+      // ANALYTICS.md for the dual-write window.
+      status: errorClass,
+      error_class: errorClass,
+      endpoint_status: typeof httpStatus === "number" ? httpStatus : null,
+      batch_size: batchSize,
+    };
+    if (droppedFailureReports > 0) {
+      props.dropped_failure_reports = droppedFailureReports;
+      droppedFailureReports = 0;
+    }
+
+    if (selfTelemetryQueue.length >= SELF_TELEMETRY_MAX) {
+      selfTelemetryQueue.shift();
+      droppedFailureReports++;
+    }
+    selfTelemetryQueue.push({
+      event: "analytics_flush_failed",
+      properties: props,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Fire-and-forget — caller doesn't await. If we can't send right now,
+    // the queue persists for the next reportFlushFailure() call or the next
+    // SW wake-up to drain. No alarm wakes this pipe on its own; if the SW
+    // shuts down with events in this queue, they're lost (intentional —
+    // we'd rather drop telemetry-about-telemetry than risk recursion).
+    flushSelfTelemetry();
+  }
+
+  async function flushSelfTelemetry() {
+    if (selfTelemetryInFlight) return;
+    if (selfTelemetryQueue.length === 0) return;
+    selfTelemetryInFlight = true;
+    const batch = selfTelemetryQueue.slice();
+    try {
+      const distinctId = await getDistinctId();
+      const manifest = chrome.runtime.getManifest();
+      const payload = {
+        api_key: POSTHOG_API_KEY,
+        batch: batch.map((e) => ({
+          event: e.event,
+          properties: {
+            ...e.properties,
+            distinct_id: distinctId,
+            $insert_id: generateUUID(),
+            $lib: "chrome-extension",
+            extension_version: manifest.version,
+            browser_language: typeof navigator !== "undefined" ? navigator.language : undefined,
+          },
+          timestamp: e.timestamp,
+          distinct_id: distinctId,
+        })),
+      };
+      const res = await fetch(`${POSTHOG_HOST}/batch/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      });
+      if (res.ok) {
+        // Drop only what we sent — events that landed after the batch was
+        // sliced (rare on a 10-cap queue, but theoretically possible)
+        // remain for the next call.
+        selfTelemetryQueue = selfTelemetryQueue.slice(batch.length);
+      }
+      // Non-ok response: leave queue in place, don't emit anything. The
+      // recursion gate. Next reportFlushFailure() call will retry.
+    } catch (err) {
+      // Recursion gate again — silent in production. Dev builds can inspect
+      // service-worker logs to see this.
+      console.warn("[analytics] self-telemetry flush failed (silent):", err && err.message);
+    } finally {
+      selfTelemetryInFlight = false;
     }
   }
 
@@ -160,9 +267,16 @@
         await capture("extension_installed", { version: currentVersion });
       } else if (details.reason === "update") {
         if (details.previousVersion && details.previousVersion !== currentVersion) {
+          // Dual-write deprecation window (2 release cycles). `from`/`to`
+          // are the legacy names — they collide with tab/sub-tab transition
+          // events that use the same property names for navigation moves.
+          // Migrate consumers to `previous_version` / `version`, then drop
+          // the legacy pair. See ANALYTICS.md for the cutover date.
           await capture("extension_updated", {
-            from: details.previousVersion,
-            to: currentVersion,
+            from: details.previousVersion,            // DEPRECATED
+            to: currentVersion,                       // DEPRECATED
+            previous_version: details.previousVersion,
+            version: currentVersion,
           });
         }
       }

@@ -35,6 +35,14 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         if (window.track) window.track("backgrounds_tab_opened");
       } catch (_) { /* ignore */ }
+    } else if (tab === "tab-typography") {
+      // Q: What share of popup sessions ever explore typography?
+      // Symmetric with quick_replies_preview_seen / backgrounds_tab_opened —
+      // the three together form the discovery-funnel denominator for the
+      // popup's non-default tabs.
+      try {
+        if (window.track) window.track("typography_tab_opened");
+      } catch (_) { /* ignore */ }
     }
   }
 

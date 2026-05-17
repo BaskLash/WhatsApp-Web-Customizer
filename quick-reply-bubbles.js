@@ -57,6 +57,44 @@ const bubbleStyles = `
   }
 `;
 
+// ── Session-level counters ──────────────────────────────────────────────
+//
+// Q: Of WA-Web page sessions where bubbles appeared, what share converted
+//    to at least one insert? `quick_reply_bubbles_shown` (below) is
+//    throttled per-impression and answers a different question
+//    ("frequency of paint events"). The session event is the conversion
+//    denominator — fired once per page session on `pagehide`.
+//
+// Counters reset only on a new page load (this content script re-evaluates
+// on each navigation). Both metrics are pure integers — no PII path.
+let sessionBubblesShownCount = 0;
+let sessionBubblesInsertedCount = 0;
+let sessionEventFired = false;
+
+function fireBubblesSessionSummary() {
+  if (sessionEventFired) return;
+  // Only fire if bubbles ever appeared — sessions where the bar never
+  // rendered (no quickReplies configured, no footer found) have nothing
+  // to summarize.
+  if (sessionBubblesShownCount === 0) return;
+  sessionEventFired = true;
+  try {
+    if (window.track) {
+      window.track("quick_reply_bubbles_session", {
+        bubbles_shown_count: sessionBubblesShownCount,
+        bubbles_inserted_count: sessionBubblesInsertedCount,
+      });
+    }
+  } catch (_) { /* analytics must never break WhatsApp */ }
+}
+
+// pagehide is the recommended unload signal on modern Chrome; fires when
+// the user navigates away, closes the tab, or BFCache-evicts the page.
+// We piggyback on track.js's sendMessage → service-worker capture path,
+// which uses keepalive at the fetch layer (in analytics.js's flush()), so
+// the event survives the unload window.
+window.addEventListener("pagehide", fireBubblesSessionSummary);
+
 // Min seconds between bubbles_shown emissions, per page load. WhatsApp
 // rebuilds the footer DOM on every chat switch and on every storage change,
 // so a user who switches chats rapidly (or saves replies one by one with
@@ -71,13 +109,21 @@ function buildBubbles(container, replies, footer) {
   const toShow = shuffled.slice(0, Math.min(5, shuffled.length));
   const bubblesShown = toShow.length;
 
+  // Session-level counter: every paint contributes, no throttle. The
+  // session summary (fireBubblesSessionSummary) reports this on unload.
+  sessionBubblesShownCount += bubblesShown;
+
   // Throttled denominator event. `count` = bubbles painted, `qr_count_total`
   // = library size — together they let us compute insert-rate per real
-  // impression without per-millisecond noise.
+  // impression without per-millisecond noise. Throttled to one emission
+  // every 10s per page load — see ANALYTICS.md for the throttle note.
   try {
     const now = Date.now();
     if (window.track && now - lastBubblesShownAt >= BUBBLES_SHOWN_THROTTLE_MS) {
       lastBubblesShownAt = now;
+      // Q: How often do the bubbles get painted? Useful for spotting
+      // chat-switch noise; sessions summary handles conversion-rate
+      // questions instead.
       window.track("quick_reply_bubbles_shown", {
         count: bubblesShown,
         qr_count_total: replies.length,
@@ -97,10 +143,14 @@ function buildBubbles(container, replies, footer) {
         textarea.focus();
         document.execCommand("insertText", false, text);
       }
+      sessionBubblesInsertedCount++;
       // Analytics: never the reply text or anything from the chat. Position
       // and count are structural — they refer to bubble slots, not content.
       try {
         if (window.track) {
+          // Q: Which slot positions do users actually click? Tells us
+          // whether the random shuffling is finding distribution or
+          // whether position bias is real.
           window.track("quick_reply_inserted", {
             bubble_position: index,
             bubbles_shown: bubblesShown,

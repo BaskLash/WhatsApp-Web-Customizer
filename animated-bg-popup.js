@@ -115,9 +115,16 @@
     });
 
     if (fireAnalytics && previous && previous !== target) {
+      // Dual-write deprecation window: `from`/`to` are kept for back-compat
+      // with existing dashboards; `from_subtab`/`to_subtab` match the rest
+      // of the sub-tab events (themes_subtab_changed,
+      // theme_manager_subtab_changed). Drop `from`/`to` after the 2-release
+      // cycle. See ANALYTICS.md for the cutover date.
       safeTrack("backgrounds_subtab_changed", {
-        from: previous,
-        to: target,
+        from: previous,            // DEPRECATED
+        to: target,                // DEPRECATED
+        from_subtab: previous,
+        to_subtab: target,
       });
     }
     if (fireAnalytics) maybeFireSubtabFirstSeen(target);

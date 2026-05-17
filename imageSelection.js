@@ -354,7 +354,12 @@ function deleteImage(src) {
 
   try {
     if (window.track) {
-      window.track("image_deleted", { kind, from_page: "popup" });
+      // Dual-write deprecation: `from_page` → `source` (see ANALYTICS.md).
+      window.track("image_deleted", {
+        kind,
+        from_page: "popup",   // DEPRECATED
+        source: "popup",
+      });
     }
   } catch (_) { /* ignore */ }
 

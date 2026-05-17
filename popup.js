@@ -131,16 +131,52 @@ try {
 } catch (e) { /* ignore */ }
 
 // ── Light Font & Privacy Mode toggles ────────────────────────────────────────
+// Privacy Mode persists "when it was turned on" so the toggle-off event can
+// report how long it had been on (chrome.storage.local survives across popup
+// sessions, so the duration spans real user time, not just one popup open).
+const PRIVACY_ENABLED_AT_KEY = "privacyModeEnabledAt";
+
 ["privacyMode"].forEach((key) => {
   const cb = document.getElementById(key);
   chrome.storage.local.get([key], (r) => { cb.checked = !!r[key]; });
-  cb.addEventListener("change", () => {
-    chrome.storage.local.set({ [key]: cb.checked });
-    if (key === "privacyMode") {
+  cb.addEventListener("change", async () => {
+    const enabled = cb.checked;
+    chrome.storage.local.set({ [key]: enabled });
+
+    if (key !== "privacyMode") return;
+
+    let sessionDurationSeconds = null;
+    if (enabled) {
+      // Stamp the on-moment. Read back when this gets turned off.
+      chrome.storage.local.set({ [PRIVACY_ENABLED_AT_KEY]: Date.now() });
+    } else {
       try {
-        window.track("privacy_mode_toggled", { enabled: cb.checked });
-      } catch (e) { /* ignore */ }
+        const r = await new Promise((resolve) =>
+          chrome.storage.local.get([PRIVACY_ENABLED_AT_KEY], resolve)
+        );
+        if (typeof r[PRIVACY_ENABLED_AT_KEY] === "number") {
+          sessionDurationSeconds = Math.max(
+            0,
+            Math.floor((Date.now() - r[PRIVACY_ENABLED_AT_KEY]) / 1000)
+          );
+        }
+      } catch (_) { /* ignore */ }
+      chrome.storage.local.remove(PRIVACY_ENABLED_AT_KEY);
     }
+
+    try {
+      // Q: Do users abandon Privacy Mode after seconds or hours? Pairs with
+      // the toggle-on event to model the lifetime distribution of users
+      // who tried it.
+      // `trigger` is forward-looking: reserved for future entry paths
+      // (keyboard shortcut, command palette). Today the only path is this
+      // toggle in the Display tab, so the value is always "toggle_change".
+      const props = { enabled, trigger: "toggle_change" };
+      if (!enabled && sessionDurationSeconds !== null) {
+        props.session_duration_seconds = sessionDurationSeconds;
+      }
+      window.track("privacy_mode_toggled", props);
+    } catch (e) { /* ignore */ }
   });
 });
 
