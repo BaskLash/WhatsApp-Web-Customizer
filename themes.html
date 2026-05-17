@@ -202,6 +202,138 @@
                 transition: opacity 0.25s ease, transform 0.25s ease;
                 z-index: 100;
             }
+
+            /* ── Card actions: extend to Edit/Duplicate ─────────────────── */
+            .theme-card .actions button.edit:hover { background: var(--accent-color); }
+            .theme-card .actions button.dup:hover  { background: var(--accent-color); }
+
+            /* ── Editor modal ───────────────────────────────────────────── */
+            .editor-backdrop {
+                position: fixed; inset: 0;
+                background: rgba(0, 0, 0, 0.6);
+                display: none; align-items: flex-start; justify-content: center;
+                z-index: 200; padding: 24px;
+                overflow-y: auto;
+            }
+            .editor-backdrop.visible { display: flex; }
+            .editor {
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 10px;
+                width: min(900px, 100%);
+                box-shadow: var(--shadow);
+                margin: auto 0;
+            }
+            .editor-header {
+                display: flex; align-items: center; justify-content: space-between;
+                padding: 18px 22px;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .editor-header h2 { font-size: 16px; font-weight: 600; }
+            .editor-header button.icon-close {
+                width: 32px; height: 32px;
+                background: transparent; border: none;
+                color: var(--muted-color); font-size: 20px;
+                cursor: pointer; border-radius: 6px;
+            }
+            .editor-header button.icon-close:hover {
+                background: var(--card-bg-elevated); color: var(--text-color);
+            }
+            .editor-body {
+                padding: 18px 22px;
+                max-height: calc(100vh - 220px);
+                overflow-y: auto;
+            }
+            .editor-body label.field-label {
+                display: block; font-size: 12px; font-weight: 600;
+                color: var(--muted-color); text-transform: uppercase;
+                letter-spacing: 0.5px; margin-bottom: 6px;
+            }
+            .name-row {
+                display: flex; align-items: center; gap: 12px;
+                margin-bottom: 4px;
+            }
+            .name-row input[type="text"] {
+                flex: 1; background: var(--bg-color);
+                border: 1px solid var(--border-color); border-radius: 6px;
+                color: var(--text-color); font-size: 14px; padding: 10px 12px;
+                outline: none; transition: border-color 0.2s;
+            }
+            .name-row input[type="text"]:focus { border-color: var(--accent-color); }
+            .name-row input[type="text"].error { border-color: var(--danger-color); }
+            .name-counter { font-size: 12px; color: var(--muted-color); min-width: 50px; text-align: right; }
+            .field-error { color: var(--danger-hover); font-size: 12px; min-height: 16px; margin-bottom: 12px; }
+
+            .var-section-label {
+                font-size: 12px; font-weight: 600;
+                color: var(--muted-color); text-transform: uppercase;
+                letter-spacing: 0.6px; margin: 18px 0 8px;
+                padding-bottom: 6px; border-bottom: 1px solid var(--border-color);
+            }
+
+            .var-row {
+                display: grid;
+                grid-template-columns: 200px 28px 1fr 36px;
+                gap: 10px; align-items: center;
+                padding: 8px 0;
+            }
+            .var-row label {
+                font-size: 13px; color: var(--text-color);
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            }
+            .var-row label code {
+                display: block; font-size: 10px; color: var(--muted-color);
+                font-family: ui-monospace, "SFMono-Regular", monospace;
+            }
+            .var-row input[type="color"] {
+                width: 28px; height: 28px;
+                border: 1px solid var(--border-color);
+                border-radius: 4px; padding: 0;
+                background: transparent; cursor: pointer;
+            }
+            .var-row .color-placeholder { width: 28px; height: 28px; }
+            .var-row input[type="text"] {
+                background: var(--bg-color);
+                border: 1px solid var(--border-color); border-radius: 6px;
+                color: var(--text-color); font-size: 13px; padding: 8px 10px;
+                outline: none; transition: border-color 0.2s;
+                font-family: ui-monospace, "SFMono-Regular", monospace;
+            }
+            .var-row input[type="text"]:focus { border-color: var(--accent-color); }
+            .var-row input[type="text"].error { border-color: var(--danger-color); }
+            .var-row .swatch-cell {
+                width: 36px; height: 28px;
+                border: 1px solid var(--border-color);
+                border-radius: 4px;
+            }
+            .var-row .field-error-inline {
+                grid-column: 1 / -1;
+                font-size: 11px; color: var(--danger-hover);
+                margin: -4px 0 4px 210px;
+                min-height: 14px;
+            }
+
+            .editor-footer {
+                display: flex; align-items: center; justify-content: space-between;
+                gap: 12px;
+                padding: 16px 22px;
+                border-top: 1px solid var(--border-color);
+            }
+            .editor-footer .footer-status {
+                color: var(--danger-hover); font-size: 13px;
+                flex: 1;
+            }
+            .editor-footer .footer-actions { display: flex; gap: 8px; }
+            button.danger {
+                padding: 10px 16px; border: none; border-radius: 6px;
+                font-size: 14px; font-weight: 500; cursor: pointer;
+                background: var(--danger-color); color: #fff;
+                transition: background 0.2s ease;
+            }
+            button.danger:hover { background: var(--danger-hover); }
+
+            /* ── Page header actions ────────────────────────────────────── */
+            .header-actions { display: flex; gap: 8px; }
             .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
             .toast.success { border-color: var(--accent-color); }
             .toast.error { border-color: var(--danger-color); }
@@ -214,8 +346,11 @@
                 <div>
                     <h1>Theme Manager</h1>
                     <div class="subtitle">
-                        Import, manage, and switch between custom WhatsApp Web themes.
+                        Create, import, manage, and switch between custom WhatsApp Web themes.
                     </div>
+                </div>
+                <div class="header-actions">
+                    <button class="primary" id="create-theme-btn" type="button">+ Create Theme</button>
                 </div>
             </header>
 
@@ -263,6 +398,37 @@
         </div>
 
         <div class="toast" id="toast"></div>
+
+        <!-- ── Editor modal ────────────────────────────────────────────── -->
+        <div class="editor-backdrop" id="editor-backdrop" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+            <div class="editor">
+                <div class="editor-header">
+                    <h2 id="editor-title">Create Theme</h2>
+                    <button class="icon-close" id="editor-close" type="button" aria-label="Close editor">✕</button>
+                </div>
+                <div class="editor-body">
+                    <label class="field-label" for="editor-name">Name</label>
+                    <div class="name-row">
+                        <input type="text" id="editor-name" maxlength="40" placeholder="My theme" autocomplete="off" />
+                        <span class="name-counter" id="editor-name-counter">0 / 40</span>
+                    </div>
+                    <div class="field-error" id="editor-name-error"></div>
+
+                    <div class="var-section-label">Colors</div>
+                    <div id="editor-color-fields"></div>
+
+                    <div class="var-section-label">Backgrounds &amp; gradients</div>
+                    <div id="editor-gradient-fields"></div>
+                </div>
+                <div class="editor-footer">
+                    <div class="footer-status" id="editor-footer-status"></div>
+                    <div class="footer-actions">
+                        <button class="secondary" id="editor-cancel" type="button">Cancel</button>
+                        <button class="primary" id="editor-save" type="button">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <script src="track.js" defer></script>
         <script src="themes-presets.js" defer></script>

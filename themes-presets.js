@@ -343,6 +343,32 @@
     }
   ];
 
-  globalThis.WA_THEME_PRESETS  = PRESETS;
-  globalThis.WA_THEME_VAR_KEYS = VAR_KEYS;
+  // PII-safe theme_id for analytics.
+  //
+  // Stored custom theme IDs come from two eras:
+  //   - Legacy: `custom-<name-slug>-<base36>` (genId derived from the user's
+  //     chosen name → leaks text into PostHog).
+  //   - New:    `custom-<base36-rand>-<base36-time>` — no name component.
+  //
+  // We never migrate stored IDs (`themes:active` references them). Instead
+  // we filter at the analytics boundary: new IDs pass through, legacy IDs
+  // collapse to a single literal so granularity is preserved for new themes
+  // without leaking old ones.
+  //
+  // Matches: preset-* (any preset, safe), custom-<base36-only>-<base36-only>
+  // with at least 6 chars of randomness. A slugged ID like
+  // "custom-my-awesome-theme-lqv8z2" fails this because of the extra
+  // hyphen-separated word groups.
+  const SAFE_CUSTOM_ID_RE = /^custom-[0-9a-z]{6,}-[0-9a-z]{4,}$/;
+  function safeThemeIdForAnalytics(theme) {
+    if (!theme || typeof theme.id !== "string") return "unknown";
+    const id = theme.id;
+    if (id.startsWith("preset-")) return id;
+    if (SAFE_CUSTOM_ID_RE.test(id)) return id;
+    return "custom-legacy";
+  }
+
+  globalThis.WA_THEME_PRESETS               = PRESETS;
+  globalThis.WA_THEME_VAR_KEYS              = VAR_KEYS;
+  globalThis.WA_SAFE_THEME_ID_FOR_ANALYTICS = safeThemeIdForAnalytics;
 })();

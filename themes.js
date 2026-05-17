@@ -66,10 +66,9 @@
       // Custom themes report only "custom" — never the user's chosen name.
       try {
         if (window.track) {
-          const isPreset = theme.source === "preset";
           window.track("theme_applied", {
-            theme_id: isPreset ? theme.id : "custom",
-            source: isPreset ? "preset" : "custom",
+            theme_id: globalThis.WA_SAFE_THEME_ID_FOR_ANALYTICS(theme),
+            source: theme.source === "preset" ? "preset" : "custom",
           });
         }
       } catch (e) { /* ignore */ }
@@ -111,19 +110,40 @@
   document.addEventListener("DOMContentLoaded", () => {
     renderAll();
 
+    // Opening the manager from one of two buttons. We always reuse the
+    // same target tab/path so the manager page is single-instance from
+    // the user's perspective; only the analytics `source` differs and,
+    // for "Create", we tack on `#create` so themes-manage.js can pop the
+    // editor open on load.
+    function openManager(opts) {
+      const source = opts && opts.source;
+      const hash = opts && opts.hash;
+      try {
+        if (window.track) {
+          // Existing default has no `source` (preserves historical shape).
+          // The new Create entry adds source: "create_button".
+          if (source) window.track("theme_manager_opened", { source });
+          else window.track("theme_manager_opened");
+        }
+      } catch (e) { /* ignore */ }
+      const url = chrome.runtime.getURL("themes.html") + (hash || "");
+      if (chrome.tabs && chrome.tabs.create) {
+        chrome.tabs.create({ url });
+      } else {
+        window.open(url, "_blank");
+      }
+    }
+
     const manageBtn = document.getElementById("open-theme-manager");
     if (manageBtn) {
-      manageBtn.addEventListener("click", () => {
-        try {
-          if (window.track) window.track("theme_manager_opened");
-        } catch (e) { /* ignore */ }
-        const url = chrome.runtime.getURL("themes.html");
-        if (chrome.tabs && chrome.tabs.create) {
-          chrome.tabs.create({ url });
-        } else {
-          window.open(url, "_blank");
-        }
-      });
+      manageBtn.addEventListener("click", () => openManager());
+    }
+
+    const createBtn = document.getElementById("create-theme");
+    if (createBtn) {
+      createBtn.addEventListener("click", () =>
+        openManager({ source: "create_button", hash: "#create" })
+      );
     }
 
     const resetBtn = document.getElementById("reset-theme");
