@@ -368,7 +368,31 @@
     return "custom-legacy";
   }
 
+  // Human-readable labels for each CSS variable. Shared by the Theme Editor
+  // (control row labels) and the Import dialog's schema docs so the two
+  // surfaces stay in lockstep. Keys must match VAR_KEYS exactly.
+  const KEY_LABELS = {
+    "--hyperlink-text":               "Hyperlink text",
+    "--important-text":               "Important text",
+    "--writing-text":                 "Compose-box text",
+    "--read-by":                      "Read-receipt accent",
+    "--message-incoming":             "Incoming bubble",
+    "--message-outgoing":             "Outgoing bubble",
+    "--main-bg-constant":             "Main background (base)",
+    "--scrollbar-track-color":        "Scrollbar track",
+    "--main-bg-to-top":               "Main bg — up",
+    "--main-bg-to-bottom":            "Main bg — down",
+    "--main-bg-to-positive-angle":    "Main bg — diagonal",
+    "--main-bg-to-negative-angle":    "Main bg — diagonal (alt.)",
+    "--wait-color-big":               "Loading screen (large)",
+    "--wait-color-side":              "Loading screen (side)",
+    "--wait-side-chat-items":         "Loading chat items",
+    "--wait-side-chat-items-reverse": "Loading chat items (alt.)",
+    "--wait-side-chat-items-to-top":  "Loading chat items (up)",
+  };
+
   globalThis.WA_THEME_PRESETS               = PRESETS;
   globalThis.WA_THEME_VAR_KEYS              = VAR_KEYS;
+  globalThis.WA_THEME_KEY_LABELS            = KEY_LABELS;
   globalThis.WA_SAFE_THEME_ID_FOR_ANALYTICS = safeThemeIdForAnalytics;
 })();

@@ -422,6 +422,170 @@
 
             /* ── Page header actions ────────────────────────────────────── */
             .header-actions { display: flex; gap: 8px; }
+
+            /* ── Sub-tabs (Custom / Presets) ──────────────────────────────
+               Class names mirror the popup's Backgrounds/Themes sub-nav so
+               the structural pattern is identical; visual tokens are
+               adapted to the Theme Manager's dark page palette since this
+               page doesn't share the popup's stylesheet. */
+            .bg-subtabs {
+                display: flex;
+                gap: 6px;
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 4px;
+                margin-bottom: 16px;
+            }
+            .bg-subtab {
+                flex: 1;
+                background: transparent;
+                color: var(--muted-color);
+                border: none;
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 13px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: background 0.15s ease, color 0.15s ease;
+            }
+            .bg-subtab:hover { color: var(--text-color); }
+            .bg-subtab.active {
+                background: var(--accent-color);
+                color: #fff;
+            }
+            .bg-subtab:focus-visible {
+                outline: 2px solid var(--accent-color);
+                outline-offset: 2px;
+            }
+            .subtab-count {
+                margin-left: 6px;
+                font-size: 11px;
+                color: inherit;
+                opacity: 0.75;
+            }
+
+            /* ── Empty state for the Custom sub-tab ────────────────────── */
+            .tm-empty {
+                text-align: center;
+                padding: 36px 20px;
+                background: var(--card-bg-elevated);
+                border: 1px dashed var(--border-color);
+                border-radius: 10px;
+            }
+            .tm-empty-headline {
+                font-size: 15px;
+                font-weight: 600;
+                color: var(--text-color);
+                margin-bottom: 6px;
+            }
+            .tm-empty-sub {
+                font-size: 13px;
+                color: var(--muted-color);
+                margin-bottom: 16px;
+            }
+            .tm-empty-actions { display: flex; gap: 8px; justify-content: center; }
+
+            /* ── Schema docs disclosure ────────────────────────────────── */
+            details.schema-docs {
+                margin-top: 12px;
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                background: var(--card-bg-elevated);
+                padding: 0;
+            }
+            details.schema-docs > summary {
+                cursor: pointer;
+                padding: 10px 12px;
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--text-color);
+                list-style: none;
+                outline: none;
+            }
+            details.schema-docs > summary::marker { display: none; }
+            details.schema-docs > summary::-webkit-details-marker { display: none; }
+            details.schema-docs > summary::before {
+                content: "▸ ";
+                color: var(--muted-color);
+                margin-right: 4px;
+                display: inline-block;
+                transition: transform 0.15s ease;
+            }
+            details.schema-docs[open] > summary::before { content: "▾ "; }
+            details.schema-docs .schema-body {
+                padding: 0 14px 14px;
+                font-size: 12px;
+                color: var(--text-color);
+                line-height: 1.55;
+            }
+            details.schema-docs .schema-body p { margin: 8px 0; color: var(--muted-color); }
+            details.schema-docs .schema-body table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 8px 0;
+            }
+            details.schema-docs .schema-body th,
+            details.schema-docs .schema-body td {
+                text-align: left;
+                padding: 4px 8px;
+                border-bottom: 1px solid var(--border-color);
+                vertical-align: top;
+            }
+            details.schema-docs .schema-body th {
+                font-size: 11px; text-transform: uppercase;
+                color: var(--muted-color); letter-spacing: 0.5px;
+                font-weight: 600;
+            }
+            details.schema-docs .schema-body code {
+                font-family: ui-monospace, "SFMono-Regular", monospace;
+                font-size: 11px;
+                color: var(--accent-color);
+            }
+            details.schema-docs .schema-body pre {
+                background: var(--bg-color);
+                border: 1px solid var(--border-color);
+                border-radius: 6px;
+                padding: 10px 12px;
+                font-size: 11px;
+                color: var(--text-color);
+                overflow-x: auto;
+                white-space: pre;
+            }
+            .template-row {
+                display: flex; align-items: center; gap: 8px;
+                margin-top: 10px;
+            }
+            .template-row .template-hint {
+                font-size: 12px; color: var(--muted-color);
+            }
+
+            /* ── Per-issue import error list ───────────────────────────── */
+            .import-issues {
+                margin-top: 10px;
+                display: flex; flex-direction: column; gap: 8px;
+            }
+            .import-issue {
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 10px 12px;
+                font-size: 12px;
+                line-height: 1.5;
+                background: var(--card-bg-elevated);
+            }
+            .import-issue.error {
+                border-color: rgba(220, 38, 38, 0.45);
+                background: rgba(220, 38, 38, 0.08);
+                color: #fecaca;
+            }
+            .import-issue.warning {
+                border-color: rgba(245, 158, 11, 0.45);
+                background: rgba(245, 158, 11, 0.10);
+                color: #fde68a;
+            }
+            .import-issue-title { font-weight: 600; margin-bottom: 2px; }
+            .import-issue-hint  { color: var(--muted-color); font-size: 11px; margin-top: 4px; }
+            .import-issue-file  { font-size: 11px; color: var(--muted-color); font-family: ui-monospace, "SFMono-Regular", monospace; }
             .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
             .toast.success { border-color: var(--accent-color); }
             .toast.error { border-color: var(--danger-color); }
@@ -451,6 +615,20 @@
                     </div>
                     <input type="file" id="file-input" accept="application/json,.json" multiple style="display: none" />
                     <div class="status-line info" id="upload-status"></div>
+                    <div class="import-issues" id="import-issues"></div>
+
+                    <div class="template-row">
+                        <button class="secondary" id="download-template-btn" type="button">Download template</button>
+                        <span class="template-hint">A ready-to-edit theme JSON.</span>
+                    </div>
+
+                    <details class="schema-docs">
+                        <summary>What does a theme file look like?</summary>
+                        <div class="schema-body" id="schema-docs-body">
+                            <!-- Populated by themes-manage.js so the var list stays in
+                                 lockstep with WA_THEME_VAR_KEYS / WA_THEME_KEY_LABELS. -->
+                        </div>
+                    </details>
                 </div>
 
                 <div class="panel">
@@ -463,26 +641,66 @@
                 </div>
             </div>
 
-            <section class="library">
-                <div class="library-header">
-                    <div>
-                        <h2>Preset Themes</h2>
-                        <div class="library-count">Built-in — non-deletable</div>
-                    </div>
-                </div>
-                <div class="grid" id="presets-grid"></div>
-            </section>
+            <!-- Sub-nav (Custom default / Presets). Reuses the popup's
+                 .bg-subtabs / .bg-subtab class names; CSS is adapted to
+                 this page's tokens (themes.html doesn't share popup.html's
+                 stylesheet). -->
+            <div class="bg-subtabs" role="tablist">
+                <button
+                    type="button"
+                    class="bg-subtab active"
+                    data-tm-subtab="tm-customs"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="tm-customs"
+                >Custom <span class="subtab-count" id="tm-customs-count" hidden></span></button>
+                <button
+                    type="button"
+                    class="bg-subtab"
+                    data-tm-subtab="tm-presets"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="tm-presets"
+                >Presets</button>
+            </div>
 
-            <section class="library">
-                <div class="library-header">
-                    <div>
-                        <h2>Custom Themes</h2>
-                        <div class="library-count" id="custom-count"></div>
+            <div class="bg-subpane" id="tm-customs" role="tabpanel">
+                <section class="library">
+                    <div class="library-header">
+                        <div>
+                            <h2>Custom Themes</h2>
+                            <div class="library-count" id="custom-count"></div>
+                        </div>
+                        <button class="secondary" id="export-all-btn">Export All</button>
                     </div>
-                    <button class="secondary" id="export-all-btn">Export All</button>
-                </div>
-                <div class="grid" id="customs-grid"></div>
-            </section>
+                    <div class="grid" id="customs-grid"></div>
+
+                    <!-- Empty state. themes-manage.js toggles between this
+                         and the grid above based on customs.length. -->
+                    <div class="tm-empty" id="tm-empty" style="display: none">
+                        <div class="tm-empty-headline">No custom themes yet</div>
+                        <p class="tm-empty-sub">
+                            Create your first theme, or import one from a JSON file.
+                        </p>
+                        <div class="tm-empty-actions">
+                            <button class="primary" id="tm-empty-create" type="button">+ Create Theme</button>
+                            <button class="secondary" id="tm-empty-import" type="button">Import a theme</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="bg-subpane" id="tm-presets" role="tabpanel" hidden>
+                <section class="library">
+                    <div class="library-header">
+                        <div>
+                            <h2>Preset Themes</h2>
+                            <div class="library-count">Built-in — non-deletable</div>
+                        </div>
+                    </div>
+                    <div class="grid" id="presets-grid"></div>
+                </section>
+            </div>
         </div>
 
         <div class="toast" id="toast"></div>

@@ -34,31 +34,194 @@
   }
 
   // ── Validation ───────────────────────────────────────────────────────────
+  //
+  // Returns { errors, warnings } — both arrays of { code, key?, message }.
+  // Errors are blocking; warnings are advisory and the import proceeds.
+  //
+  // Important: this function does NOT add new rejection conditions over the
+  // historical implementation — it only restructures the same rejections so
+  // multiple can surface in one pass. Missing-required-keys and unknown-keys
+  // are *warnings* (the apply path tolerates both), preserving import
+  // compatibility for files that worked before.
   function validateTheme(obj) {
-    if (!obj || typeof obj !== "object" || Array.isArray(obj))
-      return "Theme must be a JSON object.";
-    if (typeof obj.name !== "string" || !obj.name.trim())
-      return "Theme is missing a 'name' string.";
-    if (!obj.vars || typeof obj.vars !== "object" || Array.isArray(obj.vars))
-      return "Theme is missing a 'vars' object.";
-    const entries = Object.entries(obj.vars);
-    if (entries.length === 0) return "'vars' object is empty.";
-    for (const [k, v] of entries) {
-      if (!k.startsWith("--"))
-        return `Variable '${k}' must start with '--'.`;
-      if (typeof v !== "string" || !v.trim())
-        return `Variable '${k}' must be a non-empty string.`;
+    const errors = [];
+    const warnings = [];
+
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
+      errors.push({
+        code: "not_object",
+        message: "This file isn't a theme object. Expected a JSON object with at least `name` and `vars` fields.",
+      });
+      return { errors, warnings };
     }
-    // `meta` is optional and additive — only used by the v2 editor for
-    // lossless round-tripping. If present, must be a plain object so a
-    // hostile import can't smuggle in arrays / functions / nulls that the
-    // editor would treat as objects later.
-    if (obj.meta !== undefined) {
-      if (!obj.meta || typeof obj.meta !== "object" || Array.isArray(obj.meta)) {
-        return "'meta' must be an object if present.";
+
+    if (typeof obj.name !== "string" || !obj.name.trim()) {
+      errors.push({
+        code: "missing_name",
+        message: 'Missing or empty `name`. Add `"name": "My Theme"`.',
+      });
+    }
+
+    const varsOk = obj.vars && typeof obj.vars === "object" && !Array.isArray(obj.vars);
+    if (!varsOk) {
+      errors.push({
+        code: "missing_vars",
+        message: "Missing the `vars` object that holds your color settings. Download the template below to see the expected shape.",
+      });
+    } else {
+      const entries = Object.entries(obj.vars);
+      if (entries.length === 0) {
+        errors.push({
+          code: "empty_vars",
+          message: "`vars` is empty. Add at least one `--...` color setting (the template lists all of them).",
+        });
+      }
+
+      const known = new Set(globalThis.WA_THEME_VAR_KEYS || []);
+      const present = new Set();
+      for (const [k, v] of entries) {
+        if (!k.startsWith("--")) {
+          errors.push({
+            code: "invalid_var_key",
+            key: k,
+            message: `Variable name \`${k}\` must start with \`--\` (e.g. \`--main-bg-to-top\`).`,
+          });
+          continue;
+        }
+        if (typeof v !== "string" || !v.trim()) {
+          errors.push({
+            code: "invalid_var_value",
+            key: k,
+            message: `Value for \`${k}\` must be a CSS string (e.g. \`rgb(...)\` or \`linear-gradient(...)\`).`,
+          });
+        }
+        present.add(k);
+        if (!known.has(k)) {
+          warnings.push({
+            code: "unknown_var_key",
+            key: k,
+            message: `Unknown setting \`${k}\` — it'll be saved with the theme but won't affect anything.`,
+          });
+        }
+      }
+
+      // Missing-recommended-keys is a WARNING (Step 0 confirmed the original
+      // validator didn't require any specific keys, and the spec forbids
+      // making the validator stricter). Listing the missing keys lets users
+      // know which parts of the UI will fall back to WhatsApp defaults.
+      if (entries.length > 0) {
+        const missing = [];
+        known.forEach((k) => { if (!present.has(k)) missing.push(k); });
+        if (missing.length > 0) {
+          warnings.push({
+            code: "missing_recommended_keys",
+            keys: missing,
+            message: `Missing ${missing.length} recommended color setting${missing.length === 1 ? "" : "s"} (WhatsApp's defaults will be used for: ${missing.join(", ")}).`,
+          });
+        }
       }
     }
-    return null;
+
+    // `meta` is optional and additive — only used by the v2 editor for
+    // lossless round-tripping. If present, must be a plain object.
+    if (obj.meta !== undefined) {
+      if (!obj.meta || typeof obj.meta !== "object" || Array.isArray(obj.meta)) {
+        errors.push({
+          code: "meta_not_object",
+          message: "`meta`, if present, must be a JSON object. Remove it or replace it with `{}`.",
+        });
+      }
+    }
+
+    return { errors, warnings };
+  }
+
+  // Translate one error/warning record into the stable analytics code form.
+  // Var-keyed codes get suffixed (`invalid_var_value:--main-bg-to-top`) so a
+  // single enum captures both "what went wrong" and "where".
+  function issueToAnalyticsCode(issue) {
+    if (!issue) return "other";
+    if (issue.key) return `${issue.code}:${issue.key}`;
+    return issue.code;
+  }
+
+  // ── Schema docs (inside the Import dialog's <details>) ───────────────────
+  //
+  // Built from WA_THEME_VAR_KEYS and WA_THEME_KEY_LABELS so the list of
+  // variable keys stays automatically in sync with whatever the rest of
+  // the extension considers canonical. The minimal example uses preset-blue
+  // as a known-valid baseline (any preset would do; blue is small and
+  // representative).
+  function renderSchemaDocs() {
+    const root = document.getElementById("schema-docs-body");
+    if (!root) return;
+
+    const varKeys = Array.isArray(globalThis.WA_THEME_VAR_KEYS) ? globalThis.WA_THEME_VAR_KEYS : [];
+    const labels  = globalThis.WA_THEME_KEY_LABELS || {};
+    const presets = Array.isArray(globalThis.WA_THEME_PRESETS) ? globalThis.WA_THEME_PRESETS : [];
+    const examplePreset = presets.find((p) => p.id === "preset-blue") || presets[0];
+
+    root.innerHTML = "";
+
+    const intro = document.createElement("p");
+    intro.textContent = "A theme file is a JSON object. Required fields are `name` (a string) and `vars` (an object mapping CSS variables to color or gradient values). Optional fields: `author` (string), `meta` (object — used by the editor for round-trip; safe to omit).";
+    root.appendChild(intro);
+
+    // Top-level fields table
+    const fieldsTable = document.createElement("table");
+    fieldsTable.innerHTML = `
+      <thead><tr><th>Field</th><th>Required?</th><th>What it is</th></tr></thead>
+      <tbody>
+        <tr><td><code>name</code></td><td>Yes</td><td>What appears in the theme picker. Up to 80 chars (longer names get truncated).</td></tr>
+        <tr><td><code>vars</code></td><td>Yes</td><td>Object of CSS variables — see the list below. Each value is a CSS string.</td></tr>
+        <tr><td><code>author</code></td><td>No</td><td>Free-form attribution string, capped at 80 chars.</td></tr>
+        <tr><td><code>meta</code></td><td>No</td><td>Editor sidecar for lossless round-trip. Safe to omit on hand-written themes.</td></tr>
+      </tbody>
+    `;
+    root.appendChild(fieldsTable);
+
+    // Var-keys table — generated from WA_THEME_VAR_KEYS so adding a key
+    // automatically updates the docs.
+    const varsHeader = document.createElement("p");
+    varsHeader.innerHTML = `<strong>The ${varKeys.length} known <code>vars</code> keys</strong> — every one is optional, but each unset key falls back to WhatsApp's default. The editor uses all of them. Values are CSS strings, e.g. <code>rgb(...)</code>, <code>rgba(...)</code>, or <code>linear-gradient(...)</code>.`;
+    root.appendChild(varsHeader);
+
+    const varsTable = document.createElement("table");
+    const tbody = document.createElement("tbody");
+    varKeys.forEach((k) => {
+      const tr = document.createElement("tr");
+      const tdKey = document.createElement("td");
+      const code = document.createElement("code");
+      code.textContent = k;
+      tdKey.appendChild(code);
+      const tdLabel = document.createElement("td");
+      tdLabel.textContent = labels[k] || "(no label)";
+      tr.appendChild(tdKey);
+      tr.appendChild(tdLabel);
+      tbody.appendChild(tr);
+    });
+    varsTable.innerHTML = "<thead><tr><th>Key</th><th>What it styles</th></tr></thead>";
+    varsTable.appendChild(tbody);
+    root.appendChild(varsTable);
+
+    // Minimal example. Two-key vars block so the example fits in the
+    // disclosure without overwhelming the docs; users can click Download
+    // template (above) for the full skeleton.
+    if (examplePreset && examplePreset.vars) {
+      const exHeader = document.createElement("p");
+      exHeader.innerHTML = "<strong>Minimal valid example</strong> (click Download template above for one filled in with all keys):";
+      root.appendChild(exHeader);
+      const ex = {
+        name: "My Theme",
+        vars: {
+          "--message-incoming": examplePreset.vars["--message-incoming"],
+          "--message-outgoing": examplePreset.vars["--message-outgoing"],
+        },
+      };
+      const pre = document.createElement("pre");
+      pre.textContent = JSON.stringify(ex, null, 2);
+      root.appendChild(pre);
+    }
   }
 
   // Name-less custom-theme IDs. We used to slug the user's chosen name into
@@ -150,60 +313,160 @@
     });
   }
 
-  // Maps validateTheme() messages to a fixed enum so reasons stay safe to
-  // report. Anything we don't recognize collapses into "other".
-  function classifyValidationError(msg) {
-    if (!msg) return "other";
-    if (/JSON object/.test(msg)) return "not_object";
-    if (/'name'/.test(msg)) return "missing_name";
-    if (/'vars'/.test(msg)) return "missing_vars";
-    if (/empty/.test(msg)) return "empty_vars";
-    if (/start with '--'/.test(msg)) return "invalid_var_key";
-    if (/non-empty string/.test(msg)) return "invalid_var_value";
-    return "other";
-  }
-
-  function trackImportRejection(reason, method) {
+  // Track one rejection (one rejected file/item). Spec retained `reason` for
+  // dashboard compat — populated from the first error code so existing
+  // breakdowns keep working; the full list lives in `error_codes`.
+  function trackImportRejection({ codes, method, fileSize }) {
     try {
       if (window.track) {
-        window.track("theme_import_rejected", { reason, method });
+        window.track("theme_import_rejected", {
+          reason: codes[0] || "other",
+          method,
+          error_codes: codes,
+          error_count: codes.length,
+          file_size_bytes: typeof fileSize === "number" ? fileSize : null,
+        });
       }
     } catch (_) { /* ignore */ }
+  }
+
+  // Collected import issues, rendered into #import-issues. Each entry:
+  //   { severity: "error"|"warning", title, hint?, file? }
+  // Survives until the next import action so the user can read and act on
+  // them. `setStatus("upload-status", …)` still fires for the short summary.
+  let importIssues = [];
+  function clearImportIssues() {
+    importIssues = [];
+    renderImportIssues();
+  }
+  function pushImportIssue(issue) {
+    importIssues.push(issue);
+    renderImportIssues();
+  }
+  function renderImportIssues() {
+    const root = document.getElementById("import-issues");
+    if (!root) return;
+    root.innerHTML = "";
+    importIssues.forEach((iss) => {
+      const card = document.createElement("div");
+      card.className = `import-issue ${iss.severity}`;
+      if (iss.file) {
+        const fname = document.createElement("div");
+        fname.className = "import-issue-file";
+        fname.textContent = iss.file;
+        card.appendChild(fname);
+      }
+      const title = document.createElement("div");
+      title.className = "import-issue-title";
+      title.textContent = iss.title;
+      card.appendChild(title);
+      if (iss.hint) {
+        const hint = document.createElement("div");
+        hint.className = "import-issue-hint";
+        hint.textContent = iss.hint;
+        card.appendChild(hint);
+      }
+      root.appendChild(card);
+    });
   }
 
   async function importFromFiles(fileList, method = "file_picker") {
     const files = Array.from(fileList || []);
     if (!files.length) return;
+    clearImportIssues();
 
     let added = 0;
     let failed = 0;
+    let withWarnings = 0;
 
     for (const file of files) {
       if (file.size > MAX_FILE_SIZE) {
         failed++;
-        trackImportRejection("too_large", method);
-        setStatus("upload-status", `${file.name}: file too large.`, "error");
+        trackImportRejection({ codes: ["too_large"], method, fileSize: file.size });
+        pushImportIssue({
+          severity: "error",
+          file: file.name,
+          title: "File is larger than 1 MB",
+          hint: "This is probably the wrong file — themes are usually a few KB. Check that you selected a theme JSON file.",
+        });
         continue;
       }
+      let text;
       try {
-        const text = await readFileAsText(file);
-        const parsed = JSON.parse(text);
-        const items = Array.isArray(parsed) ? parsed : [parsed];
-        for (const item of items) {
-          const err = validateTheme(item);
-          if (err) {
-            failed++;
-            trackImportRejection(classifyValidationError(err), method);
-            setStatus("upload-status", `${file.name}: ${err}`, "error");
-            continue;
-          }
-          await addOrReplaceTheme(item);
-          added++;
-        }
+        text = await readFileAsText(file);
       } catch (e) {
         failed++;
-        trackImportRejection("parse_error", method);
-        setStatus("upload-status", `${file.name}: ${e.message || "parse failed"}.`, "error");
+        trackImportRejection({ codes: ["parse_error"], method, fileSize: file.size });
+        pushImportIssue({
+          severity: "error",
+          file: file.name,
+          title: "Couldn't read the file.",
+          hint: e && e.message ? e.message : "The browser refused to read this file.",
+        });
+        continue;
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (e) {
+        failed++;
+        trackImportRejection({ codes: ["parse_error"], method, fileSize: file.size });
+        pushImportIssue({
+          severity: "error",
+          file: file.name,
+          title: "This file isn't valid JSON.",
+          hint: "Open it in a text editor and look for missing commas, quotes, or brackets. " + (e && e.message ? e.message : ""),
+        });
+        continue;
+      }
+
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const itemLabel = items.length > 1 ? `${file.name} (item ${i + 1})` : file.name;
+        const { errors, warnings } = validateTheme(item);
+
+        if (errors.length > 0) {
+          failed++;
+          trackImportRejection({
+            codes: errors.map(issueToAnalyticsCode),
+            method,
+            fileSize: file.size,
+          });
+          errors.forEach((err) => {
+            pushImportIssue({
+              severity: "error",
+              file: itemLabel,
+              title: err.message,
+            });
+          });
+          continue;
+        }
+
+        try {
+          await addOrReplaceTheme(item);
+          added++;
+          if (warnings.length > 0) withWarnings++;
+          warnings.forEach((w) => {
+            pushImportIssue({
+              severity: "warning",
+              file: itemLabel,
+              title: w.message,
+            });
+          });
+        } catch (e) {
+          failed++;
+          // Storage write failed (most commonly quota). Treat as a generic
+          // rejection — no specific validator code, but log file size so
+          // analytics can spot users hitting the 10MB chrome.storage cap.
+          trackImportRejection({ codes: ["storage_error"], method, fileSize: file.size });
+          pushImportIssue({
+            severity: "error",
+            file: itemLabel,
+            title: "Couldn't save the theme.",
+            hint: "Storage may be full — try deleting an existing custom theme.",
+          });
+        }
       }
     }
 
@@ -213,6 +476,7 @@
           method,
           added_count: added,
           failed_count: failed,
+          added_with_warnings: withWarnings,
         });
       }
     } catch (_) { /* ignore */ }
@@ -220,39 +484,59 @@
     if (added > 0) {
       setStatus("upload-status",
         `Imported ${added} theme${added === 1 ? "" : "s"}` +
-        (failed ? ` (${failed} failed)` : ""), "success");
+        (withWarnings ? ` (${withWarnings} with warnings)` : "") +
+        (failed ? `, ${failed} failed` : "") + ".",
+        failed ? "error" : "success");
       toast(`Imported ${added} theme${added === 1 ? "" : "s"}.`, "success");
       renderAll();
     } else if (failed > 0) {
-      toast("Import failed. See details above.", "error");
+      setStatus("upload-status", `Couldn't import — see issues below.`, "error");
+      toast("Import failed. See details below.", "error");
     }
   }
 
   // ── Import: URL ──────────────────────────────────────────────────────────
   async function importFromUrl(url) {
     setStatus("url-status", "Fetching…", "info");
+    clearImportIssues();
     const method = "url";
     let httpFailed = false;
     try {
       const res = await fetch(url, { mode: "cors" });
       if (!res.ok) {
         httpFailed = true;
-        trackImportRejection("http_error", method);
+        trackImportRejection({ codes: ["http_error"], method });
+        pushImportIssue({
+          severity: "error",
+          file: url,
+          title: `Fetch failed (HTTP ${res.status}).`,
+          hint: "The URL responded but not with a theme file. Double-check that it points directly to a `.json`.",
+        });
         throw new Error(`HTTP ${res.status}`);
       }
       const parsed = await res.json();
       const items = Array.isArray(parsed) ? parsed : [parsed];
       let added = 0;
       let failed = 0;
-      for (const item of items) {
-        const err = validateTheme(item);
-        if (err) {
+      let withWarnings = 0;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const itemLabel = items.length > 1 ? `${url} (item ${i + 1})` : url;
+        const { errors, warnings } = validateTheme(item);
+        if (errors.length > 0) {
           failed++;
-          trackImportRejection(classifyValidationError(err), method);
+          trackImportRejection({ codes: errors.map(issueToAnalyticsCode), method });
+          errors.forEach((err) => {
+            pushImportIssue({ severity: "error", file: itemLabel, title: err.message });
+          });
           continue;
         }
         await addOrReplaceTheme(item);
         added++;
+        if (warnings.length > 0) withWarnings++;
+        warnings.forEach((w) => {
+          pushImportIssue({ severity: "warning", file: itemLabel, title: w.message });
+        });
       }
       try {
         if (window.track && (added > 0 || failed > 0)) {
@@ -260,6 +544,7 @@
             method,
             added_count: added,
             failed_count: failed,
+            added_with_warnings: withWarnings,
           });
         }
       } catch (_) { /* ignore */ }
@@ -274,7 +559,15 @@
       }
     } catch (e) {
       // Don't double-count: HTTP-status failures already emitted http_error.
-      if (!httpFailed) trackImportRejection("network_error", method);
+      if (!httpFailed) {
+        trackImportRejection({ codes: ["network_error"], method });
+        pushImportIssue({
+          severity: "error",
+          file: url,
+          title: "Couldn't reach the URL.",
+          hint: e && e.message ? e.message : "Check the URL or your network.",
+        });
+      }
       setStatus("url-status", `Failed: ${e.message || "network error"}.`, "error");
     }
   }
@@ -313,6 +606,21 @@
     try {
       if (window.track) window.track("theme_exported", { mode: "single", count: 1 });
     } catch (_) { /* ignore */ }
+  }
+
+  // Export a preset as a template. The download payload is the same shape
+  // as a regular theme export, so the resulting file imports cleanly. We
+  // fire a distinct analytics event so dashboards can tell teaching-by-
+  // example apart from "user backed up their own theme".
+  function exportPresetAsTemplate(preset) {
+    if (!preset || preset.source !== "preset") return;
+    downloadJson(`${preset.id}.json`, buildExportPayload(preset));
+    try {
+      if (window.track) {
+        window.track("preset_exported_as_template", { theme_id: preset.id });
+      }
+    } catch (_) { /* ignore */ }
+    toast(`Exported ${preset.name} as a template.`, "success");
   }
 
   function exportAll() {
@@ -397,6 +705,21 @@
       });
     });
     actions.appendChild(dupBtn);
+
+    if (theme.source === "preset") {
+      // Export-as-template: presets are public structure, so this is the
+      // single best way to teach users the JSON schema. Reuses the same
+      // download path as custom export; only the analytics event differs.
+      const exportPresetBtn = document.createElement("button");
+      exportPresetBtn.className = "export";
+      exportPresetBtn.title = "Export this preset as a template";
+      exportPresetBtn.textContent = "↓";
+      exportPresetBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        exportPresetAsTemplate(theme);
+      });
+      actions.appendChild(exportPresetBtn);
+    }
 
     if (theme.source === "custom") {
       const editBtn = document.createElement("button");
@@ -486,6 +809,9 @@
     const presetGrid = document.getElementById("presets-grid");
     const customGrid = document.getElementById("customs-grid");
     const customCount = document.getElementById("custom-count");
+    const emptyEl    = document.getElementById("tm-empty");
+    const exportAllBtn = document.getElementById("export-all-btn");
+    const subtabCountEl = document.getElementById("tm-customs-count");
     if (!presetGrid || !customGrid) return;
 
     const presets = Array.isArray(globalThis.WA_THEME_PRESETS) ? globalThis.WA_THEME_PRESETS : [];
@@ -495,11 +821,16 @@
 
     customGrid.innerHTML = "";
     if (customs.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "grid-empty";
-      empty.textContent = "No custom themes yet. Drop a JSON file or paste a URL above.";
-      customGrid.appendChild(empty);
+      // Empty state: shown when there are no customs. The grid is hidden
+      // (no items to show) and the dedicated empty-state block takes over
+      // with Create + Import affordances.
+      customGrid.style.display = "none";
+      if (emptyEl) emptyEl.style.display = "";
+      if (exportAllBtn) exportAllBtn.disabled = true;
     } else {
+      customGrid.style.display = "";
+      if (emptyEl) emptyEl.style.display = "none";
+      if (exportAllBtn) exportAllBtn.disabled = false;
       customs.forEach((t) => customGrid.appendChild(renderCard(t)));
     }
 
@@ -507,6 +838,59 @@
       customCount.textContent = customs.length
         ? `${customs.length} theme${customs.length === 1 ? "" : "s"}`
         : "";
+    }
+    if (subtabCountEl) {
+      if (customs.length > 0) {
+        subtabCountEl.hidden = false;
+        subtabCountEl.textContent = `(${customs.length})`;
+      } else {
+        subtabCountEl.hidden = true;
+        subtabCountEl.textContent = "";
+      }
+    }
+  }
+
+  // ── Sub-tab nav (Custom / Presets) ───────────────────────────────────────
+  // Same shape as the popup's activateThemesSubtab but persists the choice
+  // to chrome.storage.local so the page restores the user's selection on
+  // next open (longer-lived surface than the popup → persistence pays off).
+  const SUBTAB_KEY = "theme_manager_active_subtab";   // "custom" | "presets"
+  const SUBTAB_PANE_IDS = { custom: "tm-customs", presets: "tm-presets" };
+
+  function paneIdFor(subtab) { return SUBTAB_PANE_IDS[subtab] || SUBTAB_PANE_IDS.custom; }
+  function subtabForPaneId(id) {
+    return Object.keys(SUBTAB_PANE_IDS).find((k) => SUBTAB_PANE_IDS[k] === id) || "custom";
+  }
+
+  function activateTmSubtab(targetPaneId, fireAnalytics) {
+    const tabs = document.querySelectorAll("[data-tm-subtab]");
+    if (!tabs.length) return;
+    let previousPaneId = null;
+    tabs.forEach((t) => {
+      const on = t.dataset.tmSubtab === targetPaneId;
+      if (t.classList.contains("active")) previousPaneId = t.dataset.tmSubtab;
+      t.classList.toggle("active", on);
+      t.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    document.querySelectorAll(".bg-subpane").forEach((p) => {
+      p.hidden = p.id !== targetPaneId;
+    });
+
+    const targetEnum   = subtabForPaneId(targetPaneId);
+    const previousEnum = previousPaneId ? subtabForPaneId(previousPaneId) : null;
+
+    chrome.storage.local.set({ [SUBTAB_KEY]: targetEnum });
+
+    if (fireAnalytics && previousEnum && previousEnum !== targetEnum) {
+      try {
+        if (window.track) {
+          window.track("theme_manager_subtab_changed", {
+            from_subtab: previousEnum,
+            to_subtab:   targetEnum,
+            custom_theme_count: customs.length,
+          });
+        }
+      } catch (_) { /* ignore */ }
     }
   }
 
@@ -539,32 +923,18 @@
   // party imports) open via a best-effort parse from `vars`.
 
   // ─── Var taxonomy ────────────────────────────────────────────────────────
+  // Per-key human labels live in WA_THEME_KEY_LABELS (themes-presets.js) so
+  // the editor and the import-dialog schema docs read from one source.
+  // Looking up by key on access keeps this file structural-only.
+  const KEY_LABELS = globalThis.WA_THEME_KEY_LABELS || {};
+  function labelFor(key) { return KEY_LABELS[key] || key; }
+
   // Colors get sub-grouped for the UX. Sub-group order is preserved as the
   // render order in the editor.
   const COLOR_VAR_GROUPS = [
-    {
-      label: "Text",
-      vars: [
-        { key: "--hyperlink-text", label: "Hyperlink text" },
-        { key: "--important-text", label: "Important text" },
-        { key: "--writing-text",   label: "Compose-box text" },
-        { key: "--read-by",        label: "Read-receipt accent" },
-      ],
-    },
-    {
-      label: "Message bubbles",
-      vars: [
-        { key: "--message-incoming", label: "Incoming bubble" },
-        { key: "--message-outgoing", label: "Outgoing bubble" },
-      ],
-    },
-    {
-      label: "Other",
-      vars: [
-        { key: "--main-bg-constant",      label: "Main background (base)" },
-        { key: "--scrollbar-track-color", label: "Scrollbar track" },
-      ],
-    },
+    { label: "Text",            keys: ["--hyperlink-text", "--important-text", "--writing-text", "--read-by"] },
+    { label: "Message bubbles", keys: ["--message-incoming", "--message-outgoing"] },
+    { label: "Other",           keys: ["--main-bg-constant", "--scrollbar-track-color"] },
   ];
 
   // Direction map for gradients. Cross-checked against preset values in
@@ -572,15 +942,15 @@
   // `45deg` (the Designer reference does the same), so don't infer
   // `-45deg` from the var name even though the name suggests it.
   const GRADIENT_VAR_META = {
-    "--main-bg-to-top":               { label: "Main bg — up",                  direction: "to top",    group: "mainBg" },
-    "--main-bg-to-bottom":            { label: "Main bg — down",                direction: "to bottom", group: "mainBg" },
-    "--main-bg-to-positive-angle":    { label: "Main bg — diagonal",            direction: "45deg",     group: "mainBg" },
-    "--main-bg-to-negative-angle":    { label: "Main bg — diagonal (alt.)",     direction: "45deg",     group: "mainBg" },
-    "--wait-color-big":               { label: "Loading screen (large)",        direction: "45deg",     group: "wait" },
-    "--wait-color-side":              { label: "Loading screen (side)",         direction: "45deg",     group: "wait" },
-    "--wait-side-chat-items":         { label: "Loading chat items",            direction: "45deg",     group: "wait" },
-    "--wait-side-chat-items-reverse": { label: "Loading chat items (alt.)",     direction: "45deg",     group: "wait" },
-    "--wait-side-chat-items-to-top":  { label: "Loading chat items (up)",       direction: "to top",    group: "wait" },
+    "--main-bg-to-top":               { direction: "to top",    group: "mainBg" },
+    "--main-bg-to-bottom":            { direction: "to bottom", group: "mainBg" },
+    "--main-bg-to-positive-angle":    { direction: "45deg",     group: "mainBg" },
+    "--main-bg-to-negative-angle":    { direction: "45deg",     group: "mainBg" },
+    "--wait-color-big":               { direction: "45deg",     group: "wait" },
+    "--wait-color-side":              { direction: "45deg",     group: "wait" },
+    "--wait-side-chat-items":         { direction: "45deg",     group: "wait" },
+    "--wait-side-chat-items-reverse": { direction: "45deg",     group: "wait" },
+    "--wait-side-chat-items-to-top":  { direction: "to top",    group: "wait" },
   };
 
   const MAIN_BG_GRADIENT_VARS = Object.keys(GRADIENT_VAR_META)
@@ -590,7 +960,7 @@
 
   // All color vars (across sub-groups), flat. The `--main-bg-constant` here
   // is also cascaded by the mainBgUnified toggle (Designer behavior).
-  const ALL_COLOR_VARS = COLOR_VAR_GROUPS.flatMap((g) => g.vars.map((v) => v.key));
+  const ALL_COLOR_VARS = COLOR_VAR_GROUPS.flatMap((g) => g.keys);
 
   // Editor state. `null` means closed.
   let editor = null;
@@ -935,8 +1305,8 @@
       subhead.className = "var-subgroup-label";
       subhead.textContent = group.label;
       root.appendChild(subhead);
-      group.vars.forEach((meta) => {
-        root.appendChild(buildColorRow(meta));
+      group.keys.forEach((key) => {
+        root.appendChild(buildColorRow({ key, label: labelFor(key) }));
       });
     });
   }
@@ -1113,10 +1483,9 @@
     } else {
       vars.forEach((key) => {
         const state = editor.draft.gradients[key];
-        const meta = GRADIENT_VAR_META[key];
         const row = buildGradientRow({
           key,
-          labelOverride: meta.label,
+          labelOverride: labelFor(key),
           state,
           onChange: () => {},
           groupDataAttr: dataAttr,
@@ -1443,6 +1812,66 @@
   document.addEventListener("DOMContentLoaded", async () => {
     await loadAll();
     renderAll();
+    renderSchemaDocs();
+
+    // Restore last-selected sub-tab from chrome.storage.local. We read it
+    // alongside the rest of the init so the page never flashes the default
+    // pane on the way to the saved one.
+    chrome.storage.local.get([SUBTAB_KEY], (result) => {
+      const saved = result[SUBTAB_KEY];
+      const initial = (saved === "presets" || saved === "custom") ? saved : "custom";
+      activateTmSubtab(paneIdFor(initial), false);
+    });
+
+    // Sub-tab click handlers
+    document.querySelectorAll("[data-tm-subtab]").forEach((tab) => {
+      tab.addEventListener("click", () => activateTmSubtab(tab.dataset.tmSubtab, true));
+    });
+
+    // Empty-state CTAs
+    const emptyCreateBtn = document.getElementById("tm-empty-create");
+    if (emptyCreateBtn) {
+      emptyCreateBtn.addEventListener("click", () => {
+        openEditor({ mode: "create", source: "theme_manager" });
+      });
+    }
+    const emptyImportBtn = document.getElementById("tm-empty-import");
+    if (emptyImportBtn) {
+      emptyImportBtn.addEventListener("click", () => {
+        const dz = document.getElementById("drop-zone");
+        if (dz) {
+          dz.scrollIntoView({ behavior: "smooth", block: "center" });
+          dz.focus();
+        }
+      });
+    }
+
+    // Download template — generates a JSON skeleton from a preset (preset-blue
+    // by default) so users get a complete, importable starting point. Falls
+    // back to the first preset if blue is missing for any reason.
+    const tmplBtn = document.getElementById("download-template-btn");
+    if (tmplBtn) {
+      tmplBtn.addEventListener("click", () => {
+        const presets = Array.isArray(globalThis.WA_THEME_PRESETS) ? globalThis.WA_THEME_PRESETS : [];
+        const base = presets.find((p) => p.id === "preset-blue") || presets[0];
+        if (!base) {
+          toast("No preset available to base the template on.", "error");
+          return;
+        }
+        const payload = {
+          name: "My Theme",
+          author: "",
+          vars: { ...base.vars },
+        };
+        downloadJson("theme-template.json", payload);
+        try {
+          if (window.track) {
+            window.track("theme_template_downloaded", { source: "import_dialog" });
+          }
+        } catch (_) { /* ignore */ }
+        toast("Template downloaded.", "success");
+      });
+    }
 
     // File drop zone
     const dropZone = document.getElementById("drop-zone");
