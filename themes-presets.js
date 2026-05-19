@@ -343,6 +343,61 @@
         "--wait-side-chat-items-to-top":  "linear-gradient(to top, rgba(128, 0, 128, 1), rgba(110, 0, 110, 1))",
         "--writing-text":                 "rgba(250, 250, 250, 1)"
       }
+    },
+    // Community contribution → Luke Warm. Authored in the v2 editor, so it
+    // carries a `meta` sidecar (other presets predate v2 and have none). Apply
+    // path ignores `meta` — kept here for lossless round-trip if duplicated.
+    {
+      id: "preset-luke-warm",
+      name: "Luke Warm",
+      source: "preset",
+      vars: {
+        "--hyperlink-text":               "rgba(242, 218, 166, 1)",
+        "--important-text":               "rgba(234, 133, 133, 1)",
+        "--writing-text":                 "rgba(255, 255, 255, 1)",
+        "--read-by":                      "rgba(38, 217, 253, 1)",
+        "--message-incoming":             "rgba(145, 39, 141, 0.54)",
+        "--message-outgoing":             "rgba(140, 43, 105, 0.52)",
+        "--main-bg-constant":             "rgba(89, 15, 163, 0.57)",
+        "--scrollbar-track-color":        "rgba(242, 242, 242, 0.33)",
+        "--main-bg-to-top":               "linear-gradient(to top, rgba(89, 15, 163, 0), rgba(89, 15, 163, 0.81))",
+        "--main-bg-to-bottom":            "linear-gradient(to bottom, rgba(89, 15, 163, 0), rgba(89, 15, 163, 0.81))",
+        "--main-bg-to-positive-angle":    "linear-gradient(45deg, rgba(89, 15, 163, 0), rgba(89, 15, 163, 0.81))",
+        "--main-bg-to-negative-angle":    "linear-gradient(45deg, rgba(89, 15, 163, 0), rgba(89, 15, 163, 0.81))",
+        "--wait-color-big":               "linear-gradient(45deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0))",
+        "--wait-color-side":              "linear-gradient(45deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0))",
+        "--wait-side-chat-items":         "linear-gradient(45deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0))",
+        "--wait-side-chat-items-reverse": "linear-gradient(45deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0))",
+        "--wait-side-chat-items-to-top":  "linear-gradient(to top, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0))"
+      },
+      meta: {
+        editorVersion: "v2",
+        colors: {
+          "--hyperlink-text":      { color: "rgb(242, 218, 166)", opacity: 1 },
+          "--important-text":      { color: "rgb(234, 133, 133)", opacity: 1 },
+          "--writing-text":        { color: "rgb(255, 255, 255)", opacity: 1 },
+          "--read-by":             { color: "rgb(38, 217, 253)",  opacity: 1 },
+          "--message-incoming":    { color: "rgb(145, 39, 141)",  opacity: 0.54 },
+          "--message-outgoing":    { color: "rgb(140, 43, 105)",  opacity: 0.52 },
+          "--main-bg-constant":    { color: "rgb(89, 15, 163)",   opacity: 0.57 },
+          "--scrollbar-track-color": { color: "rgb(242, 242, 242)", opacity: 0.33 }
+        },
+        gradients: {
+          "--main-bg-to-top":               { color: "rgb(89, 15, 163)", opacity: 0.81, solid: false, reverse: true  },
+          "--main-bg-to-bottom":            { color: "rgb(89, 15, 163)", opacity: 0.81, solid: false, reverse: true  },
+          "--main-bg-to-positive-angle":    { color: "rgb(89, 15, 163)", opacity: 0.81, solid: false, reverse: true  },
+          "--main-bg-to-negative-angle":    { color: "rgb(89, 15, 163)", opacity: 0.81, solid: false, reverse: true  },
+          "--wait-color-big":               { color: "rgb(0, 0, 0)",     opacity: 0.65, solid: false, reverse: false },
+          "--wait-color-side":              { color: "rgb(0, 0, 0)",     opacity: 0.65, solid: false, reverse: false },
+          "--wait-side-chat-items":         { color: "rgb(0, 0, 0)",     opacity: 0.65, solid: false, reverse: false },
+          "--wait-side-chat-items-reverse": { color: "rgb(0, 0, 0)",     opacity: 0.65, solid: false, reverse: false },
+          "--wait-side-chat-items-to-top":  { color: "rgb(0, 0, 0)",     opacity: 0.65, solid: false, reverse: false }
+        },
+        colorGroupings: {
+          mainBgUnified: true,
+          waitUnified: true
+        }
+      }
     }
   ];
 
