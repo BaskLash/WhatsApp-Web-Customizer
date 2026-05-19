@@ -22,7 +22,10 @@
     } catch (_) { /* analytics must never break the popup */ }
   }
 
-  // Registry. Order = display order in the gallery.
+  // Registry. Order = display order in the gallery, ranked by
+  // `animated_background_set` adoption (PostHog, ~4-week window). Manual
+  // order — do not re-sort. Add new entries at the position the next data
+  // refresh implies, not at the end.
   // `thumb` is relative to the extension root; `chrome.runtime.getURL` resolves it.
   const ANIMATIONS = [
     {
@@ -32,34 +35,22 @@
       thumb: "backgrounds/animated/gradient_mesh/thumbnail.svg",
     },
     {
-      id: "liquid_marble",
-      title: "Liquid Marble",
-      artist: "Bundled",
-      thumb: "backgrounds/animated/liquid_marble/thumbnail.svg",
-    },
-    {
       id: "cozy_window",
       title: "Cozy Window",
       artist: "Bundled",
       thumb: "backgrounds/animated/cozy_window/thumbnail.svg",
     },
     {
-      id: "water_bubbles",
-      title: "Water Bubbles",
+      id: "liquid_marble",
+      title: "Liquid Marble",
       artist: "Bundled",
-      thumb: "backgrounds/animated/water_bubbles/thumbnail.svg",
+      thumb: "backgrounds/animated/liquid_marble/thumbnail.svg",
     },
     {
-      id: "floating_bubbles",
-      title: "Floating Bubbles",
-      artist: "Bundled",
-      thumb: "backgrounds/animated/floating_bubbles/thumbnail.svg",
-    },
-    {
-      id: "rose_lui_lava_lamp",
-      title: "Lava Lamp",
-      artist: "Rose Lui",
-      thumb: "backgrounds/animated/rose_lui_lava_lamp/thumbnail.png",
+      id: "beep_ghost",
+      title: "Floating Ghost",
+      artist: "Beep",
+      thumb: "backgrounds/animated/beep_ghost/thumbnail.png",
     },
     {
       id: "red_stapler_animated_gradient",
@@ -68,10 +59,22 @@
       thumb: "backgrounds/animated/red_stapler_animated_gradient/thumbnail.png",
     },
     {
-      id: "beep_ghost",
-      title: "Floating Ghost",
-      artist: "Beep",
-      thumb: "backgrounds/animated/beep_ghost/thumbnail.png",
+      id: "water_bubbles",
+      title: "Water Bubbles",
+      artist: "Bundled",
+      thumb: "backgrounds/animated/water_bubbles/thumbnail.svg",
+    },
+    {
+      id: "rose_lui_lava_lamp",
+      title: "Lava Lamp",
+      artist: "Rose Lui",
+      thumb: "backgrounds/animated/rose_lui_lava_lamp/thumbnail.png",
+    },
+    {
+      id: "floating_bubbles",
+      title: "Floating Bubbles",
+      artist: "Bundled",
+      thumb: "backgrounds/animated/floating_bubbles/thumbnail.svg",
     },
     {
       id: "tiffany_choong_stripes",
